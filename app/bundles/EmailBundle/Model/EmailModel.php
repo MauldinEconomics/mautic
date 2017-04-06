@@ -1414,7 +1414,9 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                 );
             }
         }
-
+        /* NOTES: This code causes contention while running multiple threads making everything
+         *  single- threaded
+       * TODO: do the email counting in anoter way
         // Update sent counts
         foreach ($emailSentCounts as $emailId => $count) {
             // Retry a few times in case of deadlock errors
@@ -1429,6 +1431,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                 --$strikes;
             }
         }
+       */
 
         // Free RAM
         $this->em->clear('Mautic\EmailBundle\Entity\Stat');
