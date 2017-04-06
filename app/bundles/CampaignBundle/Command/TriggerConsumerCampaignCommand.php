@@ -19,14 +19,13 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
-
-
 /**
- * Class TriggerCampaignCommand.
+ * Class TriggerConsumerCampaignCommand.
  */
-class TriggerCampaignCommand extends ModeratedCommand
+class TriggerConsumerCampaignCommand extends ModeratedCommand
 {
     /**
      * @var EventDispatcher
@@ -39,7 +38,7 @@ class TriggerCampaignCommand extends ModeratedCommand
     protected function configure()
     {
         $this
-            ->setName('mautic:campaigns:trigger')
+            ->setName('mautic:campaigns:trigger:consume')
             ->setDescription('Trigger timed events for published campaigns.')
             ->addOption(
                 '--campaign-id',
@@ -81,6 +80,7 @@ class TriggerCampaignCommand extends ModeratedCommand
         $negativeOnly     = $input->getOption('negative-only');
         $batch            = $input->getOption('batch-limit');
         $max              = $input->getOption('max-events');
+
         $connection = new AMQPStreamConnection('rabbitmq', 5672, 'guest', 'guest');
         $channel = $connection->channel();
 
@@ -100,35 +100,14 @@ class TriggerCampaignCommand extends ModeratedCommand
                 $totalProcessed = 0;
                 $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $id]).'</info>');
 
-                if (!$negativeOnly && !$scheduleOnly) {
                     //trigger starting action events for newly added contacts
                     $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                    $processed = $model->triggerStartingEvents($campaign, $totalProcessed, $batch, $max, $output,$channel);
+                    $processed = $model->consumeStartingEvents($campaign, $totalProcessed, $batch, $max, $output,$channel);
                     $output->writeln(
                         '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
                     );
-                }
 
-                if ((!$max || $totalProcessed < $max) && !$negativeOnly) {
-                    //trigger scheduled events
-                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.scheduled').'</comment>');
-                    $processed = $model->triggerScheduledEvents($campaign, $totalProcessed, $batch, $max, $output);
-                    $output->writeln(
-                        '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
-                    );
                 }
-
-                if ((!$max || $totalProcessed < $max) && !$scheduleOnly) {
-                    //find and trigger "no" path events
-                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.negative').'</comment>');
-                    $processed = $model->triggerNegativeEvents($campaign, $totalProcessed, $batch, $max, $output);
-                    $output->writeln(
-                        '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
-                    );
-                }
-            } else {
-                $output->writeln('<error>'.$translator->trans('mautic.campaign.rebuild.not_found', ['%id%' => $id]).'</error>');
-            }
         } else {
             $campaigns = $campaignModel->getEntities(
                 [
@@ -136,6 +115,7 @@ class TriggerCampaignCommand extends ModeratedCommand
                 ]
             );
 
+            $processed_list = [];
             while (($c = $campaigns->next()) !== false) {
                 $totalProcessed = 0;
 
@@ -148,48 +128,32 @@ class TriggerCampaignCommand extends ModeratedCommand
                     }
 
                     $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $c->getId()]).'</info>');
-                    if (!$negativeOnly && !$scheduleOnly) {
                         //trigger starting action events for newly added contacts
                         $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                        $processed = $model->triggerStartingEvents($c, $totalProcessed, $batch, $max, $output,$channel);
-                        $output->writeln(
-                            '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'
-                            ."\n"
-                        );
-                    }
-
-                    if ($max && $totalProcessed >= $max) {
-                        continue;
-                    }
-
-                    if (!$negativeOnly) {
-                        //trigger scheduled events
-                        $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.scheduled').'</comment>');
-                        $processed = $model->triggerScheduledEvents($c, $totalProcessed, $batch, $max, $output);
-                        $output->writeln(
-                            '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'
-                            ."\n"
-                        );
-                    }
-
-                    if ($max && $totalProcessed >= $max) {
-                        continue;
-                    }
-
-                    if (!$scheduleOnly) {
-                        //find and trigger "no" path events
-                        $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.negative').'</comment>');
-                        $processed = $model->triggerNegativeEvents($c, $totalProcessed, $batch, $max, $output);
-                        $output->writeln(
-                            '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'
-                            ."\n"
-                        );
-                    }
+                        $model->consumeStartingEvents($c, $totalProcessed, $batch, $max, $output,$channel);
                 }
 
-                $em->detach($c);
-                unset($c);
             }
+
+        // Timeout in  $timeout_period in seconds  and give up on $max_timeout retries
+        // Reset counter on success
+        $max_timeout = 10;
+        $timeout_period = 0.2;
+        $timeout_counter = 0 ;
+        while(count($channel->callbacks) >= 1  && ($timeout_counter < $max_timeout) ) {
+
+            try {
+                $channel->wait(null,false,$timeout_period);
+                $timeout_counter = 0;
+            }catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e){
+                $output->writeln('trigger_start wait timeout counter ' . $timeout_counter );
+                $timeout_counter = $timeout_counter + 1;
+            }catch (\Exception $e ){
+                $output->writeln('error processing - '.$campaignId.' - '.$e  );
+
+          }
+
+        }
 
             unset($campaigns);
         }
