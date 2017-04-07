@@ -963,7 +963,7 @@ class EventModel extends CommonFormModel
             // Free RAM
 
             $this->em->flush();
-            $this->em->getConnection().commit();
+            $this->em->getConnection()->commit();
             $this->em->clear('Mautic\LeadBundle\Entity\Lead');
             $this->em->clear('Mautic\UserBundle\Entity\User');
             unset($events, $leads);
@@ -1095,6 +1095,7 @@ class EventModel extends CommonFormModel
 
                 unset($campaignLeads);
 
+                $this->em->getConnection()->beginTransaction();
                 $this->logger->debug('CAMPAIGN: Processing the following contacts: '.implode(', ', $campaignLeadIds));
 
                 foreach ($nonActionEvents as $parentId => $events) {
@@ -1172,7 +1173,6 @@ class EventModel extends CommonFormModel
 
                     $leadDebugCounter = 1;
                     /** @var \Mautic\LeadBundle\Entity\Lead $lead */
-                    $this->em->getConnection()->beginTransaction();
                     foreach ($leads as $lead) {
                         ++$negativeEvaluatedCount;
 
