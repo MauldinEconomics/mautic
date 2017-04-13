@@ -73,9 +73,9 @@ class CampaignSubscriber extends CommonSubscriber
     }
 
     /**
-     * Trigger campaign event for clicking an email link.
+     * Trigger campaign event for clicking an email link (i.e. hitting a page).
      *
-     * @param EmailOpenEvent $event
+     * @param PageHitEvent $event
      */
     public function onEmailClickLink(PageHitEvent $event)
     {
@@ -85,6 +85,7 @@ class CampaignSubscriber extends CommonSubscriber
             $this->campaignEventModel->triggerEvent('email.click_link', $hit, 'email', $hit->getEmail()->getId());
         }
     }
+
     /**
      * @param CampaignExecutionEvent $event
      */
