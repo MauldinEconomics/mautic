@@ -14,7 +14,7 @@ return [
 
     'services' => [
         'events' => [
-            'mautic.mauldin.campaignbundle.subscriber' => [
+            'mauldin.clicks.campaignbundle.subscriber' => [
                 'class'     => 'MauticPlugin\MauticMauldinClicksBundle\EventListener\CampaignSubscriber',
                 'arguments' => [
                     'mautic.lead.model.lead',
@@ -25,9 +25,9 @@ return [
             ],
         ],
         'forms' => [
-            'mautic.form.type.email_click' => [
+            'mauldin.form.type.email_click' => [
                 'class' => 'MauticPlugin\MauticMauldinClicksBundle\Form\Type\CampaignEventEmailClickType',
-                'alias' => 'campaignevent_email_click',
+                'alias' => 'mauldin_campaignevent_email_click',
             ],
         ],
     ],

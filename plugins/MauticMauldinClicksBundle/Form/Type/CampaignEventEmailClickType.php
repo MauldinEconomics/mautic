@@ -12,7 +12,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 
 /**
- * Class CampaignEventPageHitType.
+ * Class CampaignEventEmailClickType.
  */
 class CampaignEventEmailClickType extends AbstractType
 {
@@ -22,12 +22,12 @@ class CampaignEventEmailClickType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->add('url', 'text', [
-            'label'      => 'mautic.page.campaign.event.form.url',
+            'label'      => 'mauldin.click.campaign.event.form.url',
             'label_attr' => ['class' => 'control-label'],
             'required'   => false,
             'attr'       => [
                 'class'   => 'form-control',
-                'tooltip' => 'mautic.page.campaign.event.form.url.descr',
+                'tooltip' => 'mauldin.click.campaign.event.form.url.descr',
             ],
         ]);
     }
@@ -37,6 +37,6 @@ class CampaignEventEmailClickType extends AbstractType
      */
     public function getName()
     {
-        return 'campaignevent_email_click';
+        return 'mauldin_campaignevent_email_click';
     }
 }

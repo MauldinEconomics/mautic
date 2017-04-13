@@ -83,9 +83,9 @@ class CampaignSubscriber extends CommonSubscriber
         $event->addDecision(
             'email.click_link',
             [
-                'label'                  => 'mautic.email.campaign.event.click_link',
-                'description'            => 'mautic.email.campaign.event.click_link_descr',
-                'formType'               => 'campaignevent_email_click',
+                'label'                  => 'mauldin.click.campaign.event.click_link',
+                'description'            => 'mauldin.click.campaign.event.click_link_descr',
+                'formType'               => 'mauldin_campaignevent_email_click',
                 'eventName'              => ClickEvents::ON_CAMPAIGN_TRIGGER_DECISION,
                 'connectionRestrictions' => [
                     'source' => [
