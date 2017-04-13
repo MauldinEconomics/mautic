@@ -20,6 +20,7 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\LeadBundle\Model\LeadModel;
 use Mautic\PageBundle\Event\PageHitEvent;
 use Mautic\PageBundle\PageEvents;
+use MauticPlugin\MauticMauldinClicksBundle\ClickEvents;
 
 /**
  * Class CampaignSubscriber.
@@ -70,7 +71,7 @@ class CampaignSubscriber extends CommonSubscriber
         return [
             CampaignEvents::CAMPAIGN_ON_BUILD         => ['onCampaignBuild', 0],
             PageEvents::PAGE_ON_HIT                   => ['onEmailClickLink', 0],
-            EmailEvents::ON_CAMPAIGN_TRIGGER_DECISION => ['onCampaignTriggerDecision', 0],
+            ClickEvents::ON_CAMPAIGN_TRIGGER_DECISION => ['onCampaignTriggerDecision', 0],
         ];
     }
 
@@ -85,7 +86,7 @@ class CampaignSubscriber extends CommonSubscriber
                 'label'                  => 'mautic.email.campaign.event.click_link',
                 'description'            => 'mautic.email.campaign.event.click_link_descr',
                 'formType'               => 'campaignevent_email_click',
-                'eventName'              => EmailEvents::ON_CAMPAIGN_TRIGGER_DECISION,
+                'eventName'              => ClickEvents::ON_CAMPAIGN_TRIGGER_DECISION,
                 'connectionRestrictions' => [
                     'source' => [
                         'action' => [
