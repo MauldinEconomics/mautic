@@ -12,12 +12,7 @@ use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Event\CampaignBuilderEvent;
 use Mautic\CampaignBundle\Event\CampaignExecutionEvent;
 use Mautic\CampaignBundle\Model\EventModel;
-use Mautic\ChannelBundle\Model\MessageQueueModel;
 use Mautic\CoreBundle\EventListener\CommonSubscriber;
-use Mautic\EmailBundle\EmailEvents;
-use Mautic\EmailBundle\Event\EmailOpenEvent;
-use Mautic\EmailBundle\Model\EmailModel;
-use Mautic\LeadBundle\Model\LeadModel;
 use Mautic\PageBundle\Event\PageHitEvent;
 use Mautic\PageBundle\PageEvents;
 use MauticPlugin\MauticMauldinClicksBundle\ClickEvents;
@@ -28,21 +23,6 @@ use MauticPlugin\MauticMauldinClicksBundle\ClickEvents;
 class CampaignSubscriber extends CommonSubscriber
 {
     /**
-     * @var LeadModel
-     */
-    protected $leadModel;
-
-    /**
-     * @var EmailModel
-     */
-    protected $emailModel;
-
-    /**
-     * @var EmailModel
-     */
-    protected $messageQueueModel;
-
-    /**
      * @var EventModel
      */
     protected $campaignEventModel;
@@ -50,17 +30,11 @@ class CampaignSubscriber extends CommonSubscriber
     /**
      * CampaignSubscriber constructor.
      *
-     * @param LeadModel         $leadModel
-     * @param EmailModel        $emailModel
-     * @param EventModel        $eventModel
-     * @param MessageQueueModel $messageQueueModel
+     * @param EventModel $eventModel
      */
-    public function __construct(LeadModel $leadModel, EmailModel $emailModel, EventModel $eventModel, MessageQueueModel $messageQueueModel)
+    public function __construct(EventModel $eventModel)
     {
-        $this->leadModel          = $leadModel;
-        $this->emailModel         = $emailModel;
         $this->campaignEventModel = $eventModel;
-        $this->messageQueueModel  = $messageQueueModel;
     }
 
     /**

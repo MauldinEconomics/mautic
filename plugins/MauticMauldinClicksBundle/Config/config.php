@@ -17,10 +17,7 @@ return [
             'mauldin.clicks.campaignbundle.subscriber' => [
                 'class'     => 'MauticPlugin\MauticMauldinClicksBundle\EventListener\CampaignSubscriber',
                 'arguments' => [
-                    'mautic.lead.model.lead',
-                    'mautic.email.model.email',
                     'mautic.campaign.model.event',
-                    'mautic.channel.model.queue',
                 ],
             ],
         ],
