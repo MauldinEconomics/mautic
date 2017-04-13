@@ -23,6 +23,11 @@ use MauticPlugin\MauticMauldinClicksBundle\ClickEvents;
 class CampaignSubscriber extends CommonSubscriber
 {
     /**
+     * @var string Name used for the CampaignBuilder event
+     */
+    const CLICK_TYPE = 'mauldin.click_link';
+
+    /**
      * @var EventModel
      */
     protected $campaignEventModel;
@@ -55,7 +60,7 @@ class CampaignSubscriber extends CommonSubscriber
     public function onCampaignBuild(CampaignBuilderEvent $event)
     {
         $event->addDecision(
-            'email.click_link',
+            self::CLICK_TYPE,
             [
                 'label'                  => 'mauldin.click.campaign.event.click_link',
                 'description'            => 'mauldin.click.campaign.event.click_link_descr',
@@ -82,7 +87,7 @@ class CampaignSubscriber extends CommonSubscriber
         $hit = $event->getHit();
 
         if ($hit->getEmail() !== null) {
-            $this->campaignEventModel->triggerEvent('email.click_link', $hit, 'email', $hit->getEmail()->getId());
+            $this->campaignEventModel->triggerEvent(self::CLICK_TYPE, $hit, 'email', $hit->getEmail()->getId());
         }
     }
 
@@ -101,7 +106,7 @@ class CampaignSubscriber extends CommonSubscriber
 
         //check to see if the parent event is a "send email" event and that it matches the current email opened
         if (!empty($eventParent) && $eventParent['type'] === 'email.send') {
-            if ($event->getEvent()['type'] == 'email.click_link') {
+            if ($event->getEvent()['type'] == self::CLICK_TYPE) {
                 $urlMatches = [];
 
                 // Check Email URL
