@@ -12,9 +12,9 @@ namespace MauticPlugin\MauticMauldinClicksBundle;
  * Class EmailEvents
  * Events available for EmailBundle.
  */
-final class MauticMauldinEvents
+final class MauticMauldinClicksEvents
 {
-    const EMAIL_ON_CLICK_LINK= 'mautic.email_on_click_link';
+    const EMAIL_ON_CLICK_LINK = 'mautic.email_on_click_link';
 
     /**
      * The mautic.email.on_campaign_trigger_decision event is fired when the campaign action triggers.

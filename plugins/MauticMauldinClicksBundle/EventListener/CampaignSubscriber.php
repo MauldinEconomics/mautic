@@ -15,12 +15,11 @@ use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\ChannelBundle\Model\MessageQueueModel;
 use Mautic\CoreBundle\EventListener\CommonSubscriber;
 use Mautic\EmailBundle\EmailEvents;
-use Mautic\PageBundle\PageEvents;
 use Mautic\EmailBundle\Event\EmailOpenEvent;
 use Mautic\EmailBundle\Model\EmailModel;
-use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\LeadModel;
 use Mautic\PageBundle\Event\PageHitEvent;
+use Mautic\PageBundle\PageEvents;
 
 /**
  * Class CampaignSubscriber.
@@ -105,7 +104,7 @@ class CampaignSubscriber extends CommonSubscriber
      */
     public function onEmailClickLink(PageHitEvent $event)
     {
-        $hit= $event->getHit();
+        $hit = $event->getHit();
 
         if ($hit->getEmail() !== null) {
             $this->campaignEventModel->triggerEvent('email.click_link', $hit, 'email', $hit->getEmail()->getId());
@@ -117,7 +116,7 @@ class CampaignSubscriber extends CommonSubscriber
     public function onCampaignTriggerDecision(CampaignExecutionEvent $event)
     {
         $eventDetails = $event->getEventDetails();
-        $config = $event->getConfig();
+        $config       = $event->getConfig();
         $eventParent  = $event->getEvent()['parent'];
 
         if ($eventDetails == null) {
