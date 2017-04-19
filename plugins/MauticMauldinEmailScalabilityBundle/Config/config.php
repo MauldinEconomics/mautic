@@ -32,10 +32,13 @@ return [
                     'mautic.user.model.user',
                     'mautic.core.model.notification',
                     'mautic.factory',
-                  ],
+                ],
+                'methodCalls' => [
+                    'setChannelHelper' => ['@mauldin.scalability.message_queue.channel_helper'],
+                ],
             ],
             'mautic.scalability.model.scalablelistmodel' => [
-                'class' => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\ScalableListModel',
+                'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\ScalableListModel',
                 'arguments' => [
                     'mautic.helper.core_parameters',
                 ],

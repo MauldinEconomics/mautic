@@ -4,38 +4,22 @@
  * @package     Mauldin Email Scalability
  * @copyright   Copyright(c) 2017 by GGC PUBLISHING, LLC
  * @author      Brick Abode
+ * @author      Max Lawton <max@mauldineconomics.com>
  */
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Model;
 
-use Mautic\CampaignBundle\Model\EventModel;
-use Mautic\CampaignBundle\Model\CampaignModel;
-use Doctrine\DBAL\DBALException;
-use Doctrine\ORM\EntityNotFoundException;
 use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Entity\Campaign;
 use Mautic\CampaignBundle\Entity\Event;
-use Mautic\CampaignBundle\Entity\LeadEventLog;
-use Mautic\CampaignBundle\Entity\LeadEventLogRepository;
 use Mautic\CampaignBundle\Event\CampaignDecisionEvent;
-use Mautic\CampaignBundle\Event\CampaignExecutionEvent;
-use Mautic\CampaignBundle\Event\CampaignScheduledEvent;
-use Mautic\CoreBundle\Factory\MauticFactory;
-use Mautic\CoreBundle\Helper\Chart\ChartQuery;
-use Mautic\CoreBundle\Helper\Chart\LineChart;
-use Mautic\CoreBundle\Helper\CoreParametersHelper;
-use Mautic\CoreBundle\Helper\DateTimeHelper;
-use Mautic\CoreBundle\Helper\IpLookupHelper;
+use Mautic\CampaignBundle\Model\CampaignModel;
+use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\CoreBundle\Helper\ProgressBarHelper;
-use Mautic\CoreBundle\Model\FormModel as CommonFormModel;
-use Mautic\CoreBundle\Model\NotificationModel;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\LeadModel;
-use Mautic\UserBundle\Model\UserModel;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use PhpAmqpLib\Connection\AMQPStreamConnection;
-use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * Class EventModel
@@ -43,27 +27,53 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class EventModelExtended extends EventModel
 {
+    /** @var string */
+    const QUEUE_PREFIX = 'trigger_start-';
+
+    /** @var ChannelHelper */
+    protected $channelHelper;
+
+    /** @var QueueChannel */
+    protected $channel;
+
     /**
-     * EventModel constructor.
+     * Set channel helper.
      *
-     * @param IpLookupHelper       $ipLookupHelper
-     * @param CoreParametersHelper $coreParametersHelper
-     * @param LeadModel            $leadModel
-     * @param CampaignModel        $campaignModel
-     * @param UserModel            $userModel
-     * @param NotificationModel    $notificationModel
-     * @param MauticFactory        $factory
+     * @param ChannelHelper $helper
      */
-    public function __construct(
-        IpLookupHelper $ipLookupHelper,
-        CoreParametersHelper $coreParametersHelper,
-        LeadModel $leadModel,
-        CampaignModel $campaignModel,
-        UserModel $userModel,
-        NotificationModel $notificationModel,
-        MauticFactory $factory
-    ) {
-        parent::__construct($ipLookupHelper, $coreParametersHelper, $leadModel, $campaignModel, $userModel, $notificationModel, $factory);
+    public function setChannelHelper(ChannelHelper $helper)
+    {
+        $this->channelHelper = $helper;
+    }
+
+    /**
+     * Get channel helper.
+     *
+     * @return ChannelHelper
+     *
+     * @throws \RuntimeException when no helper is present
+     */
+    public function getChannelHelper()
+    {
+        if (!$this->channelHelper) {
+            throw new \RuntimeException('ChannelHelper missing from '.self::class);
+        }
+
+        return $this->channelHelper;
+    }
+
+    /**
+     * Get channel, retrieving it from the helper if necessary.
+     *
+     * @return QueueChannel
+     */
+    public function getChannel()
+    {
+        if (!$this->channel) {
+            $this->channel = $this->getChannelHelper()->getChannel();
+        }
+
+        return $this->channel;
     }
 
     /**
@@ -85,7 +95,6 @@ class EventModelExtended extends EventModel
         $limit = 100,
         $max = false,
         OutputInterface $output = null,
-        $channel,
         $leadId = null,
         $returnCounts = false
     ) {
@@ -100,7 +109,7 @@ class EventModelExtended extends EventModel
         $logRepo      = $this->getLeadEventLogRepository();
 
         // Create a channel and a queue for receiving  the events
-        $channel->queue_declare('trigger_start-'.$campaignId, false, true, false, false);
+        $queue = $this->declareCampaignQueue($campaignId);
 
         if ($this->dispatcher->hasListeners(CampaignEvents::ON_EVENT_DECISION_TRIGGER)) {
             // Include decisions if there are listeners
@@ -130,7 +139,7 @@ class EventModelExtended extends EventModel
         $callback = function ($msg) use ($output, $events, $eventSettings, $campaign, $campaignId) {
             try {
                 // Get list of all campaign leads; start is always zero in practice because of $pendingOnly
-                $campaignLeads= explode(' ', $msg->body);
+                $campaignLeads = explode(' ', $msg->body);
 
                 if (!empty($campaignLeads)) {
                     $leads = $this->leadModel->getEntities(
@@ -268,19 +277,31 @@ class EventModelExtended extends EventModel
 
                 ++$batchDebugCounter;
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $output->writeln('Exception while consuming message');
-                $output->writeln($e);
+                $output->writeln($e->getMessage());
             }
         };
 
-        $channel->basic_qos(null, 1, null);
-        $channel->basic_consume('trigger_start-'.$campaignId, '', false, false, false, false, $callback);
-        return 1 ;
+        $queue->consume($callback);
+
+        return 1;
     }
 
-    public function getCampaignLeadIdsNext($q, $campaignId, $lastLeadId, $start = 0, $limit = false, $pendingOnly = false)
+    /**
+     * Get lead IDs of a campaign.
+     *
+     * @param            $campaignId
+     * @param int        $start
+     * @param bool|false $limit
+     * @param bool|false  getCampaignLeadIds
+     *
+     * @return array
+     */
+    public function getCampaignLeadIdsNext($campaignId, $lastLeadId, $start = 0, $limit = false, $pendingOnly = false)
     {
+        $q = $this->em->getConnection()->createQueryBuilder();
+
         $q->select('cl.lead_id')
             ->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
             ->where(
@@ -333,7 +354,6 @@ class EventModelExtended extends EventModel
         $limit = 100,
         $max = false,
         OutputInterface $output = null,
-        $channel,
         $leadId = null,
         $returnCounts = false
     ) {
@@ -346,10 +366,9 @@ class EventModelExtended extends EventModel
         $repo         = $this->getRepository();
         $campaignRepo = $this->getCampaignRepository();
         $logRepo      = $this->getLeadEventLogRepository();
+        $queue        = $this->declareCampaignQueue($campaignId);
 
-        $channel->queue_declare('trigger_start-'.$campaignId, false, true, false, false);
-
-        $events = $repo->getRootLevelEvents($campaignId);
+        $events         = $repo->getRootLevelEvents($campaignId);
         $rootEventCount = count($events);
 
         if (empty($rootEventCount)) {
@@ -405,15 +424,15 @@ class EventModelExtended extends EventModel
 
         $this->logger->debug('CAMPAIGN: Processing the following events: '.implode(', ', array_keys($events)));
 
-        $batchCount = ceil($leadCount /$limit);
+        $batchCount = ceil($leadCount / $limit);
 
-        $batchIdx= 0;
+        $batchIdx = 0;
         // paginate
-        $lastId = null;
+        $lastId       = null;
         $currentCount = 0;
 
         while ($batchIdx < $batchCount) {
-            $batchIdx++;
+            ++$batchIdx;
             $this->logger->debug('CAMPAIGN: Batch #'.$batchDebugCounter);
 
             //  Paginate the lead list limit  with the batch size
@@ -421,12 +440,11 @@ class EventModelExtended extends EventModel
                 $campaignLeads = ($leadId) ? [$leadId] : $campaignRepo->getCampaignLeadIds($campaignId, 0, $limit, true);
             } else {
                 $this->logger->debug('LAST BATCH ID #'.$lastId);
-                $q = $this->em->getConnection()->createQueryBuilder();
-                $campaignLeads = $this->getCampaignLeadIdsNext($q, $campaignId, $lastId, 0, $limit, true);
+                $campaignLeads = $this->getCampaignLeadIdsNext($campaignId, $lastId, 0, $limit, true);
             }
 
-            $msg = new AMQPMessage(implode(' ', $campaignLeads));
-            $channel->basic_publish($msg, '', 'trigger_start-'.$campaignId);
+            $queue->publish(implode(' ', $campaignLeads));
+
             $lastId = array_values(array_slice($campaignLeads, -1))[0];
             $currentCount += count($campaignLeads);
             $progress->setProgress($currentCount);
@@ -437,8 +455,8 @@ class EventModelExtended extends EventModel
             $output->writeln('');
         }
 
-        # TODO: This counter does not work anymore because the events are now processed
-        #  in other thread
+        // TODO: This counter does not work anymore because the events are now processed
+        //  in other thread
         $counts = [
             'events'         => $totalStartingEvents,
             'evaluated'      => $rootEvaluatedCount,
@@ -449,5 +467,23 @@ class EventModelExtended extends EventModel
         $this->logger->debug('CAMPAIGN: Counts - '.var_export($counts, true));
 
         return ($returnCounts) ? $counts : $executedEventCount;
+    }
+
+    /**
+     * Declare campaign queue and return a QueueReference.
+     *
+     * @param $campaignId
+     *
+     * @return MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference
+     */
+    protected function declareCampaignQueue($campaignId)
+    {
+        // Declare the channel's queue with $durable = true
+
+        return $this->getChannelHelper()->declareQueue(
+            self::QUEUE_PREFIX.$campaignId,
+            $this->getChannel(),
+            true
+        );
     }
 }
