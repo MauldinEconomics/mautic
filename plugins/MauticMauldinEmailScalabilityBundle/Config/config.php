@@ -66,6 +66,12 @@ return [
                     '%mautic.rabbitmq_password%',
                 ],
             ],
+            'mauldin.scalability.message_queue.channel_helper' => [
+                'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper',
+                'arguments' => [
+                    '@mautic.mauldin.rabbitmq_connection',
+                ],
+            ],
         ],
     ],
 ];
