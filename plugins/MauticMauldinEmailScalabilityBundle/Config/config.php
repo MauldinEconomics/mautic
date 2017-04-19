@@ -12,6 +12,14 @@ return [
     'version'     => '1.0',
     'author'      => 'Brick Abode',
 
+    'parameters' => [
+        'rabbitmq_host'          => 'rabbitmq',
+        'rabbitmq_port'          => '5672',
+        'rabbitmq_username'      => 'guest',
+        'rabbitmq_password'      => 'guest',
+        'rabbitmq_default_queue' => 'email',
+    ],
+
     'services' => [
         'models' => [
             'mautic.mauldin.model.event' => [
