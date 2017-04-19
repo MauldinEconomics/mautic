@@ -8,29 +8,35 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Swiftmailer\Transport;
 
-use PhpAmqpLib\Message\AMQPMessage;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportInterface;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\TransportQueueInterface;
 
 /**
- * Class SendgridTransport.
+ * Class RabbitmqTransport.
  */
-class RabbitmqTransport extends \Swift_SmtpTransport
+class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportInterface
 {
-    private $connection;
+    /** @var TransportQueueInterface */
+    private $queue;
 
-    private $rabbitmqidproperty;
-
-    private $channel;
+    /** {@inheritdoc} */
+    public function setTransportQueue(TransportQueueInterface $queue)
+    {
+        $this->queue = $queue;
+    }
 
     /**
-     * {@inheritdoc}
+     * Get transport queue.
+     *
+     * @return TransportQueueInterface
      */
-    public function __construct($connection, $host, $port, $security)
+    public function getTransportQueue()
     {
-        $this->connection = $connection;
-        $this->channel = $this->connection->channel();
-        $this->channel->queue_declare('email', false, false, false, false);
+        if (!$this->queue) {
+            throw new \RuntimeException('Transport queue missing from '.self::class);
+        }
 
-        parent::__construct($host, $port, $security);
+        return $this->queue;
     }
 
     /**
@@ -43,14 +49,29 @@ class RabbitmqTransport extends \Swift_SmtpTransport
      */
     public function send(\Swift_Mime_Message $message, &$failedRecipients = null)
     {
-        // Send a the message add leadIdHash to track this email
-        $msg = new AMQPMessage(serialize($message));
-        $this->channel->basic_publish($msg, '', 'email');
-        return 1 ;
+        if (!$this->queue) {
+            throw new \RuntimeException('TransportQueue missing from '.self::class);
+        }
+
+        try {
+            $this->queue->publish(serialize($message));
+        } catch (\Exception $e) {
+            throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
+        }
+
+        return 1;
     }
 
+    /**
+     * @param \Swift_Mime_Message $message
+     * @param null                $failedRecipients
+     *
+     * @return int
+     *
+     * @throws \Swift_TransportException
+     */
     public function sendDirect(\Swift_Mime_Message $message, &$failedRecipients = null)
     {
-        parent::send($message, $failedRecipients);
+        return parent::send($message, $failedRecipients);
     }
 }

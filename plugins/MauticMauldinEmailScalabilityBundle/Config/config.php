@@ -50,23 +50,31 @@ return [
                 ],
             ],
         ],
+
         'other' => [
+            'mauldin.transport_queue.rabbitmq' => [
+                'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\RabbitmqTransportQueue',
+                'arguments' => [
+                    '@mauldin.scalability.message_queue.channel_helper',
+                    '%mautic.rabbitmq_default_queue%',
+                ],
+            ],
             'mautic.transport.rabbitmq' => [
                 'class'        => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Swiftmailer\Transport\RabbitmqTransport',
                 'serviceAlias' => 'swiftmailer.mailer.transport.%s',
                 'methodCalls'  => [
-                    'setUsername' => ['%mautic.mailer_user%'],
-                    'setPassword' => ['%mautic.mailer_password%'],
+                    'setUsername'       => ['%mautic.mailer_user%'],
+                    'setPassword'       => ['%mautic.mailer_password%'],
+                    'setTransportQueue' => ['@mauldin.transport_queue.rabbitmq'],
                 ],
                 'arguments' => [
-                    '@mautic.mauldin.rabbitmq_connection',
                     '%mautic.mailer_host%',
                     '%mautic.mailer_port%',
                     '%mautic.mailer_encryption%',
-                ]
+                ],
             ],
             'mautic.mauldin.rabbitmq_connection' => [
-                'class' => 'PhpAmqpLib\Connection\AMQPStreamConnection',
+                'class'     => 'PhpAmqpLib\Connection\AMQPStreamConnection',
                 'arguments' => [
                     '%mautic.rabbitmq_host%',
                     '%mautic.rabbitmq_port%',
