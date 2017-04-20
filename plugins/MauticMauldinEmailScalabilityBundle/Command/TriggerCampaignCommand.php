@@ -16,7 +16,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * Class TriggerCampaignCommand.
@@ -64,10 +63,12 @@ class TriggerCampaignCommand extends ModeratedCommand
     {
         $container = $this->getContainer();
 
-        /** @var \Mautic\CampaignBundle\Model\EventModel $model */
-        $model = $container->get('mautic.mauldin.model.event');
+        /** @var \Mautic\CampaignBundle\Model\EventModel $eventModel */
+        $eventModel = $container->get('mautic.mauldin.model.event');
+
         /** @var \Mautic\CampaignBundle\Model\CampaignModel $campaignModel */
-        $campaignModel    = $container->get('mautic.campaign.model.campaign');
+        $campaignModel = $container->get('mautic.campaign.model.campaign');
+
         $this->dispatcher = $container->get('event_dispatcher');
         $translator       = $container->get('translator');
         $em               = $container->get('doctrine')->getManager();
@@ -76,9 +77,6 @@ class TriggerCampaignCommand extends ModeratedCommand
         $negativeOnly     = $input->getOption('negative-only');
         $batch            = $input->getOption('batch-limit');
         $max              = $input->getOption('max-events');
-
-        $connection       = $container->get('mautic.mauldin.rabbitmq_connection');
-        $channel          = $connection->channel();
 
         if (!$this->checkRunStatus($input, $output, $id)) {
             return 0;
@@ -99,7 +97,9 @@ class TriggerCampaignCommand extends ModeratedCommand
                 if (!$negativeOnly && !$scheduleOnly) {
                     //trigger starting action events for newly added contacts
                     $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                    $processed = $model->triggerStartingEventsSelect($campaign, $totalProcessed, $batch, $max, $output, $channel);
+
+                    $processed = $eventModel->triggerStartingEventsSelect($campaign, $totalProcessed, $batch, $max, $output);
+
                     $output->writeln(
                         '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
                     );
@@ -129,7 +129,7 @@ class TriggerCampaignCommand extends ModeratedCommand
                     if (!$negativeOnly && !$scheduleOnly) {
                         //trigger starting action events for newly added contacts
                         $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                        $processed = $model->triggerStartingEventsSelect($c, $totalProcessed, $batch, $max, $output, $channel);
+                        $processed = $eventModel->triggerStartingEventsSelect($c, $totalProcessed, $batch, $max, $output);
                         $output->writeln(
                             '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'
                             ."\n"

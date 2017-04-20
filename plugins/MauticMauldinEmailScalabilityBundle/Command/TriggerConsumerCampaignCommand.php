@@ -17,8 +17,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
-use PhpAmqpLib\Message\AMQPMessage;
-
 /**
  * Class TriggerConsumerCampaignCommand.
  */
@@ -44,9 +42,8 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                 'Trigger events for a specific campaign.  Otherwise, all campaigns will be triggered.',
                 null
             )
-            ->addOption('--scheduled-only', null, InputOption::VALUE_NONE, 'Trigger only scheduled events')
-            ->addOption('--negative-only', null, InputOption::VALUE_NONE, 'Trigger only negative events, i.e. with a "no" decision path.')
             ->addOption('--batch-limit', '-l', InputOption::VALUE_OPTIONAL, 'Set batch size of contacts to process per round. Defaults to 100.', 100)
+            ->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', 10)
             ->addOption(
                 '--max-events',
                 '-m',
@@ -65,23 +62,22 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
     {
         $container = $this->getContainer();
 
-        /** @var \MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\EventModelExtended $model */
-        $model = $container->get('mautic.mauldin.model.event');
-        $output->writeln('loaded model');
+        /** @var \MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\EventModelExtended $eventModel */
+        $eventModel = $container->get('mautic.mauldin.model.event');
+        $output->writeln('Loaded event model');
+
         /** @var \Mautic\CampaignBundle\Model\CampaignModel $campaignModel */
-        $campaignModel    = $container->get('mautic.campaign.model.campaign');
-        $output->writeln('loaded campaign model');
+        $campaignModel = $container->get('mautic.campaign.model.campaign');
+        $output->writeln('Loaded campaign model');
+
         $this->dispatcher = $container->get('event_dispatcher');
         $translator       = $container->get('translator');
         $em               = $container->get('doctrine')->getManager();
-        $id               = $input->getOption('campaign-id');
-        $scheduleOnly     = $input->getOption('scheduled-only');
-        $negativeOnly     = $input->getOption('negative-only');
-        $batch            = $input->getOption('batch-limit');
-        $max              = $input->getOption('max-events');
 
-        $connection       = $container->get('mautic.mauldin.rabbitmq_connection');
-        $channel          = $connection->channel();
+        $id         = $input->getOption('campaign-id');
+        $batch      = $input->getOption('batch-limit');
+        $maxEvents  = $input->getOption('max-events');
+        $maxRetries = $input->getOption('max-retries');
 
         if (!$this->checkRunStatus($input, $output, $id)) {
             return 0;
@@ -97,14 +93,17 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                 }
 
                 $totalProcessed = 0;
+
                 $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $id]).'</info>');
 
-                    //trigger starting action events for newly added contacts
-                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                $processed = $model->consumeStartingEvents($campaign, $totalProcessed, $batch, $max, $output, $channel);
+                // trigger starting action events for newly added contacts
+                $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
+
+                $processed = $eventModel->consumeStartingEvents($campaign, $totalProcessed, $batch, $maxEvents, $output);
+
                 $output->writeln(
-                        '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
-                    );
+                    '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
+                );
             }
         } else {
             $campaigns = $campaignModel->getEntities(
@@ -113,7 +112,6 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                 ]
             );
 
-            $processed_list = [];
             while (($c = $campaigns->next()) !== false) {
                 $totalProcessed = 0;
 
@@ -126,24 +124,27 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                     }
 
                     $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $c->getId()]).'</info>');
-                        //trigger starting action events for newly added contacts
-                        $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                    $model->consumeStartingEvents($c, $totalProcessed, $batch, $max, $output, $channel);
+                    //trigger starting action events for newly added contacts
+                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
+
+                    $eventModel->consumeStartingEvents($c, $totalProcessed, $batch, $maxEvents, $output);
                 }
             }
 
-        // Timeout in  $timeout_period in seconds  and give up on $max_timeout retries
-        // Reset counter on success
-        $max_timeout = 10;
-            $timeout_period = 0.2;
-            $timeout_counter = 0 ;
-            while (count($channel->callbacks) >= 1  && ($timeout_counter < $max_timeout)) {
+            // Timeout in $timeoutPeriod in seconds and give up on $maxRetries retries
+            // Reset counter on success
+            $timeoutPeriod  = 0.2;
+            $timeoutCounter = 0;
+
+            $channel = $eventModel->getChannel();
+
+            while ($channel->hasCallbacks() && ($timeoutCounter < $maxRetries)) {
                 try {
-                    $channel->wait(null, false, $timeout_period);
-                    $timeout_counter = 0;
+                    $channel->wait($timeoutPeriod);
+                    $timeoutCounter = 0;
                 } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                    $output->writeln('trigger_start wait timeout counter ' . $timeout_counter);
-                    $timeout_counter = $timeout_counter + 1;
+                    $output->writeln('trigger_start wait timeout counter '.$timeoutCounter);
+                    $timeoutCounter += 1;
                 } catch (\Exception $e) {
                     $output->writeln('error processing - '.$campaignId.' - '.$e);
                 }
