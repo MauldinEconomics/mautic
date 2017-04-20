@@ -1415,24 +1415,20 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             }
         }
 
-        // CODE IGNORED WHEN USING THE RABBITMQ TRANSPORT
-        if (! property_exists($mailer->getTransport(), 'rabbitmqidproperty')) {
-            // Update sent counts
-            foreach ($emailSentCounts as $emailId => $count) {
-                // Retry a few times in case of deadlock errors
-                $strikes = 3;
-                while ($strikes >= 0) {
-                    try {
-                        $this->getRepository()->upCount($emailId, 'sent', $count, $emailSettings[$emailId]['isVariant']);
-                        break;
-                    } catch (\Exception $exception) {
-                        error_log($exception);
-                    }
-                    --$strikes;
+        // Update sent counts
+        foreach ($emailSentCounts as $emailId => $count) {
+            // Retry a few times in case of deadlock errors
+            $strikes = 3;
+            while ($strikes >= 0) {
+                try {
+                    $this->getRepository()->upCount($emailId, 'sent', $count, $emailSettings[$emailId]['isVariant']);
+                    break;
+                } catch (\Exception $exception) {
+                    error_log($exception);
                 }
+                --$strikes;
             }
         }
-        // END CODE IGNORED
 
         // Free RAM
         $this->em->clear('Mautic\EmailBundle\Entity\Stat');

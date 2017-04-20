@@ -1721,35 +1721,30 @@ class MailHelper
         /** @var \Mautic\EmailBundle\Model\EmailModel $emailModel */
         $emailModel = $this->factory->getModel('email');
 
-        // CODE IGNORED WHEN USING THE RABBITMQ TRANSPORT
-        if (!property_exists($this->transport, 'rabbitmqidproperty')) {
+        // Save a copy of the email - use email ID if available simply to prevent from having to rehash over and over
+        $id = (null !== $this->email) ? $this->email->getId() : md5($this->subject.$this->body['content']);
+        if (!isset($copies[$id])) {
+            $hash = (strlen($id) !== 32) ? md5($this->subject.$this->body['content']) : $id;
 
-            // Save a copy of the email - use email ID if available simply to prevent from having to rehash over and over
-            $id = (null !== $this->email) ? $this->email->getId() : md5($this->subject.$this->body['content']);
-            if (!isset($copies[$id])) {
-                $hash = (strlen($id) !== 32) ? md5($this->subject.$this->body['content']) : $id;
-
-                $copy        = $emailModel->getCopyRepository()->findByHash($hash);
-                $copyCreated = false;
-                if (null === $copy) {
-                    if (!$emailModel->getCopyRepository()->saveCopy($hash, $this->subject, $this->body['content'])) {
-                        // Try one more time to find the ID in case there was overlap when creating
-                        $copy = $emailModel->getCopyRepository()->findByHash($hash);
-                    } else {
-                        $copyCreated = true;
-                    }
-                }
-
-                if ($copy || $copyCreated) {
-                    $copies[$id] = $hash;
+            $copy        = $emailModel->getCopyRepository()->findByHash($hash);
+            $copyCreated = false;
+            if (null === $copy) {
+                if (!$emailModel->getCopyRepository()->saveCopy($hash, $this->subject, $this->body['content'])) {
+                    // Try one more time to find the ID in case there was overlap when creating
+                    $copy = $emailModel->getCopyRepository()->findByHash($hash);
+                } else {
+                    $copyCreated = true;
                 }
             }
 
-            if (isset($copies[$id])) {
-                $stat->setStoredCopy($this->factory->getEntityManager()->getReference('MauticEmailBundle:Copy', $copies[$id]));
+            if ($copy || $copyCreated) {
+                $copies[$id] = $hash;
             }
         }
-        // END OF CODE IGNORED
+
+        if (isset($copies[$id])) {
+            $stat->setStoredCopy($this->factory->getEntityManager()->getReference('MauticEmailBundle:Copy', $copies[$id]));
+        }
 
         if ($persist) {
             $emailModel->getStatRepository()->saveEntity($stat);
