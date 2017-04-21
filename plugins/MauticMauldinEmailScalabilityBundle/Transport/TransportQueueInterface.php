@@ -6,7 +6,7 @@
  * @author    Max Lawton <max@mauldineconomics.com>
  */
 
-namespace MauticMauldinEmailScalabilityBundle\Transport;
+namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport;
 
 /**
  * Transport Queue Interface.
