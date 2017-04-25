@@ -92,20 +92,28 @@ class TriggerCampaignCommand extends ModeratedCommand
                 }
 
                 $totalProcessed = 0;
-                $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $id]).'</info>');
+
+                $output->writeln(
+                    '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_queue', ['%id%' => $id]).'</info>',
+                    OutputInterface::VERBOSITY_VERBOSE
+                );
 
                 if (!$negativeOnly && !$scheduleOnly) {
-                    //trigger starting action events for newly added contacts
-                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
+                    $output->writeln(
+                        '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_queue').'</comment>',
+                        OutputInterface::VERBOSITY_VERY_VERBOSE
+                    );
 
+                    //trigger starting action events for newly added contacts
                     $processed = $eventModel->triggerStartingEventsSelect($campaign, $totalProcessed, $batch, $max, $output);
 
                     $output->writeln(
-                        '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
+                        '<comment>'.$translator->trans('mauldin.campaign.trigger.events_queued', ['%events%' => $processed]).'</comment>',
+                        OutputInterface::VERBOSITY_VERBOSE
                     );
                 }
             } else {
-                $output->writeln('<error>'.$translator->trans('mautic.campaign.rebuild.not_found', ['%id%' => $id]).'</error>');
+                $output->writeln('<error>'.$translator->trans('mauldin.campaign.trigger.not_found', ['%id%' => $id]).'</error>');
             }
         } else {
             $campaigns = $campaignModel->getEntities(
@@ -125,14 +133,23 @@ class TriggerCampaignCommand extends ModeratedCommand
                         continue;
                     }
 
-                    $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $c->getId()]).'</info>');
+                    $output->writeln(
+                        '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_queue', ['%id%' => $c->getId()]).'</info>',
+                        OutputInterface::VERBOSITY_VERBOSE
+                    );
+
                     if (!$negativeOnly && !$scheduleOnly) {
-                        //trigger starting action events for newly added contacts
-                        $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-                        $processed = $eventModel->triggerStartingEventsSelect($c, $totalProcessed, $batch, $max, $output);
                         $output->writeln(
-                            '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'
-                            ."\n"
+                            '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_queue').'</comment>',
+                            OutputInterface::VERBOSITY_VERY_VERBOSE
+                        );
+
+                        //trigger starting action events for newly added contacts
+                        $processed = $eventModel->triggerStartingEventsSelect($c, $totalProcessed, $batch, $max, $output);
+
+                        $output->writeln(
+                            '<comment>'.$translator->trans('mauldin.campaign.trigger.events_queued', ['%events%' => $processed]).'</comment>',
+                            OutputInterface::VERBOSITY_VERBOSE
                         );
                     }
                 }

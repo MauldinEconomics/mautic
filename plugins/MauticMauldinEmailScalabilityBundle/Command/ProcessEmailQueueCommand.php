@@ -78,8 +78,11 @@ EOT
                 $queue->wait($timeoutPeriod);
                 $timeoutCounter = 0;
             } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                $output->writeln('Email wait timeout counter '.$timeoutCounter);
                 $timeoutCounter += 1;
+                $output->writeln(
+                    sprintf('Email wait timeout counter %d/%d.', $timeoutCounter, $maxRetries),
+                    OutputInterface::VERBOSITY_DEBUG
+                );
             }
         }
 

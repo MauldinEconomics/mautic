@@ -64,11 +64,11 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
 
         /** @var \MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\EventModelExtended $eventModel */
         $eventModel = $container->get('mautic.mauldin.model.event');
-        $output->writeln('Loaded event model');
+        $output->writeln('Loaded event model', OutputInterface::VERBOSITY_DEBUG);
 
         /** @var \Mautic\CampaignBundle\Model\CampaignModel $campaignModel */
         $campaignModel = $container->get('mautic.campaign.model.campaign');
-        $output->writeln('Loaded campaign model');
+        $output->writeln('Loaded campaign model', OutputInterface::VERBOSITY_DEBUG);
 
         $this->dispatcher = $container->get('event_dispatcher');
         $translator       = $container->get('translator');
@@ -94,15 +94,22 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
 
                 $totalProcessed = 0;
 
-                $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $id]).'</info>');
+                $output->writeln(
+                    '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_consume', ['%id%' => $id]).'</info>',
+                    OutputInterface::VERBOSITY_VERBOSE
+                );
+
+                $output->writeln(
+                    '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_consume').'</comment>',
+                    OutputInterface::VERBOSITY_VERY_VERBOSE
+                );
 
                 // trigger starting action events for newly added contacts
-                $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
-
                 $processed = $eventModel->consumeStartingEvents($campaign, $totalProcessed, $batch, $maxEvents, $output);
 
                 $output->writeln(
-                    '<comment>'.$translator->trans('mautic.campaign.trigger.events_executed', ['%events%' => $processed]).'</comment>'."\n"
+                    '<comment>'.$translator->trans('mauldin.campaign.trigger.events_consumed', ['%events%' => $processed]).'</comment>'."\n",
+                    OutputInterface::VERBOSITY_VERBOSE
                 );
             }
         } else {
@@ -123,10 +130,17 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                         continue;
                     }
 
-                    $output->writeln('<info>'.$translator->trans('mautic.campaign.trigger.triggering', ['%id%' => $c->getId()]).'</info>');
-                    //trigger starting action events for newly added contacts
-                    $output->writeln('<comment>'.$translator->trans('mautic.campaign.trigger.starting').'</comment>');
+                    $output->writeln(
+                        '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_consume', ['%id%' => $c->getId()]).'</info>',
+                        OutputInterface::VERBOSITY_VERBOSE
+                    );
 
+                    $output->writeln(
+                        '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_consume').'</comment>',
+                        OutputInterface::VERBOSITY_VERBOSE
+                    );
+
+                    //trigger starting action events for newly added contacts
                     $eventModel->consumeStartingEvents($c, $totalProcessed, $batch, $maxEvents, $output);
                 }
             }
@@ -143,10 +157,17 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                     $channel->wait($timeoutPeriod);
                     $timeoutCounter = 0;
                 } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                    $output->writeln('trigger_start wait timeout counter '.$timeoutCounter);
                     $timeoutCounter += 1;
+                    $output->writeln(
+                        sprintf('Campaign consumer wait timeout counter %d/%d.', $timeoutCounter, $maxRetries),
+                        OutputInterface::VERBOSITY_DEBUG
+                    );
                 } catch (\Exception $e) {
-                    $output->writeln('error processing - '.$campaignId.' - '.$e);
+                    $output->writeln(sprintf(
+                        '<error>error processing campaign %d</error> - %s',
+                        $campaignId,
+                        $e->getMessage()
+                    ));
                 }
             }
 
