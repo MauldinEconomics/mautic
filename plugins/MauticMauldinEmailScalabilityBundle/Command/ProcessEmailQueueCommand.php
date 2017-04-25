@@ -70,7 +70,7 @@ EOT
 
         // Give up after '--max-retries' (default: 10)
         $maxRetries     = $input->getOption('max-retries');
-        $timoutPeriod   = 0.2;
+        $timeoutPeriod  = 0.2;
         $timeoutCounter = 0;
 
         while ($queue->hasChannelCallbacks() && ($timeoutCounter < $maxRetries)) {
@@ -78,7 +78,7 @@ EOT
                 $queue->wait($timeoutPeriod);
                 $timeoutCounter = 0;
             } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                $output->writeln('Email wait timeout counter ' + $timeoutCounter);
+                $output->writeln('Email wait timeout counter '.$timeoutCounter);
                 $timeoutCounter += 1;
             }
         }

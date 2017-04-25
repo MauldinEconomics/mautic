@@ -79,6 +79,6 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      */
     public function wait($timeout = 0, $allowedMethods = null, $nonBlocking = false)
     {
-        return $this->queue->wait($allowedMethods, $nonBlocking, $timeout);
+        return $this->queue->wait($timeout, $allowedMethods, $nonBlocking);
     }
 }

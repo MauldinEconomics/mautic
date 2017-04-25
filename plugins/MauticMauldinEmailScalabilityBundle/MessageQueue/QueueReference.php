@@ -116,6 +116,6 @@ class QueueReference
      */
     public function wait($timeout = 0, $allowedMethods = null, $nonBlocking = false)
     {
-        return $this->channel->wait($allowedMethods, $nonBlocking, $timeout);
+        return $this->channel->wait($timeout, $allowedMethods, $nonBlocking);
     }
 }
