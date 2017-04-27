@@ -50,7 +50,9 @@ trait VariantModelTrait
             }
 
             $parent->setVariantStartDate(null);
-            $parent->setVariantSentCount(0);
+            if (method_exists($parent, 'setVariantSentCount')) {
+                $parent->setVariantSentCount(0);
+            }
 
             foreach ($children as $child) {
                 //capture child before it's removed from collection
@@ -73,7 +75,9 @@ trait VariantModelTrait
                     $child->removeVariantParent();
                 }
 
-                $child->setVariantSentCount(0);
+                if (method_exists($child, 'setVariantSentCount')) {
+                    $child->setVariantSentCount(0);
+                }
                 $child->setVariantStartDate(null);
             }
         }
