@@ -468,6 +468,7 @@ return [
                     'mautic.email.model.email',
                     'mautic.security',
                     'mautic.lead.model.lead',
+                    'mautic.asset.model.asset',
                     'mautic.stage.model.stage',
                     'mautic.category.model.category',
                     'mautic.helper.user',
