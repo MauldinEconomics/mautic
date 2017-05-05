@@ -104,6 +104,17 @@ class FilterType extends AbstractType
                     $customOptions['multiple'] = true;
                     $type                      = 'choice';
                     break;
+                case 'assets':
+                    if (!isset($data['filter'])) {
+                        $data['filter'] = [];
+                    } elseif (!is_array($data['filter'])) {
+                        $data['filter'] = [$data['filter']];
+                    }
+
+                    $customOptions['choices']  = $options['assets'];
+                    $customOptions['multiple'] = true;
+                    $type                      = 'choice';
+                    break;
                 case 'lead_email_received':
                     if (!isset($data['filter'])) {
                         $data['filter'] = [];
@@ -369,6 +380,7 @@ class FilterType extends AbstractType
                 'fields',
                 'lists',
                 'emails',
+                'assets',
                 'tags',
                 'stage',
                 'locales',
