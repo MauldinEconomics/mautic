@@ -130,6 +130,17 @@ trait FilterTrait
                 $customOptions['multiple'] = true;
                 $type                      = 'choice';
                 break;
+            case 'assets':
+                if (!isset($data['filter'])) {
+                    $data['filter'] = [];
+                } elseif (!is_array($data['filter'])) {
+                    $data['filter'] = [$data['filter']];
+                }
+
+                $customOptions['choices']  = $options['assets'];
+                $customOptions['multiple'] = true;
+                $type                      = 'choice';
+                break;
             case 'tags':
                 if (!isset($data['filter'])) {
                     $data['filter'] = [];

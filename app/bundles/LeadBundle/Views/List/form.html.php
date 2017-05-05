@@ -32,6 +32,7 @@ $templates = [
     'deviceBrands'   => 'device_brand-template',
     'deviceOs'       => 'device_os-template',
     'emails'         => 'lead_email_received-template',
+    'assets'         => 'assets-template',
     'tags'           => 'tags-template',
     'stage'          => 'stage-template',
     'locales'        => 'locale-template',
