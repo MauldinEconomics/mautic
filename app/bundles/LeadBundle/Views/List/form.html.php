@@ -29,6 +29,7 @@ $templates = [
     'select'         => 'select-template',
     'lists'          => 'leadlist-template',
     'emails'         => 'lead_email_received-template',
+    'assets'         => 'assets-template',
     'tags'           => 'tags-template',
     'stage'          => 'stage-template',
     'locales'        => 'locale-template',
