@@ -8,29 +8,19 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Model;
 
-use Mautic\LeadBundle\Model\ListModel;
-use Mautic\CoreBundle\Helper\Chart\BarChart;
-use Mautic\CoreBundle\Helper\Chart\ChartQuery;
-use Mautic\CoreBundle\Helper\Chart\PieChart;
-use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Helper\ProgressBarHelper;
-use Mautic\CoreBundle\Model\FormModel;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Entity\LeadList;
-use Mautic\LeadBundle\Entity\ListLead;
-use Mautic\LeadBundle\Entity\OperatorListTrait;
-use Mautic\LeadBundle\Event\LeadListEvent;
-use Mautic\LeadBundle\Event\LeadListFiltersChoicesEvent;
 use Mautic\LeadBundle\Event\ListChangeEvent;
-use Mautic\LeadBundle\Helper\FormFieldHelper;
 use Mautic\LeadBundle\LeadEvents;
+use Mautic\LeadBundle\Model\ListModel;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\Event;
-use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 
 class ScalableListModel extends ListModel
 {
+    /** {@inheritdoc} */
     public function rebuildListLeads(LeadList $entity, $limit = 1000, $maxLeads = false, OutputInterface $output = null)
     {
         defined('MAUTIC_REBUILDING_LEAD_LISTS') or define('MAUTIC_REBUILDING_LEAD_LISTS', 1);

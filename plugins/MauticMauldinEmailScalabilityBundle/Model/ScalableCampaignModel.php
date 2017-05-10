@@ -8,29 +8,19 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Model;
 
-use Mautic\CampaignBundle\Model\CampaignModel;
-use Doctrine\ORM\PersistentCollection;
 use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Entity\Campaign;
 use Mautic\CampaignBundle\Entity\Event;
 use Mautic\CampaignBundle\Event as Events;
-use Mautic\CoreBundle\Helper\Chart\ChartQuery;
-use Mautic\CoreBundle\Helper\Chart\LineChart;
-use Mautic\CoreBundle\Helper\CoreParametersHelper;
+use Mautic\CampaignBundle\Model\CampaignModel;
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Helper\ProgressBarHelper;
-use Mautic\CoreBundle\Model\FormModel as CommonFormModel;
-use Mautic\FormBundle\Entity\Form;
-use Mautic\FormBundle\Model\FormModel;
 use Mautic\LeadBundle\Entity\Lead;
-use Mautic\LeadBundle\Entity\LeadList;
-use Mautic\LeadBundle\Model\LeadModel;
-use Mautic\LeadBundle\Model\ListModel;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 
 class ScalableCampaignModel extends CampaignModel
 {
+    /** {@inheritdoc} */
     public function rebuildCampaignLeads(Campaign $campaign, $limit = 1000, $maxLeads = false, OutputInterface $output = null)
     {
         defined('MAUTIC_REBUILDING_CAMPAIGNS') or define('MAUTIC_REBUILDING_CAMPAIGNS', 1);
