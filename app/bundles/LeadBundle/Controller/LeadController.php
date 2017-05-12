@@ -1264,6 +1264,10 @@ class LeadController extends FormController
         $model   = $this->getModel('lead');
         $session = $this->get('session');
 
+        if (!$this->get('mautic.security')->isGranted('lead:batch:import')){
+            return $this->accessDenied();
+        }
+
         if (!$this->get('mautic.security')->isGranted('lead:leads:create')) {
             return $this->accessDenied();
         }
@@ -2253,9 +2257,14 @@ class LeadController extends FormController
                 'lead:leads:editother',
                 'lead:leads:deleteown',
                 'lead:leads:deleteother',
+                'lead:batch:export',
             ],
             'RETURN_ARRAY'
         );
+
+        if (!$permissions['lead:batch:export']){
+            return $this->accessDenied();
+        }
 
         if (!$permissions['lead:leads:viewown'] && !$permissions['lead:leads:viewother']) {
             return $this->accessDenied();
