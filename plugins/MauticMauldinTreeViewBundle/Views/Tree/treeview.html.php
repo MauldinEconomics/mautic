@@ -61,7 +61,7 @@
             <div class="progress-bar progress-bar-success" style="width:<?php echo $event['percent']; ?>%"></div>
             <div class="box-layout">
                 <?php
-                    $margin = 20 * $event['order'];
+                    $margin = 20 * $event['depth'];
                 ?>
                 <div class="col-md-8 va-m">
                     <h3 style="<?php echo "margin-left:".($margin)."px;"; ?>" >

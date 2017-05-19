@@ -87,76 +87,69 @@ class ContentSubscriber extends CommonSubscriber
         }
     }
 
+    /*
+     * This function takes a list of events and returns a list of events.
+     * The difference is that the returned list is correctly ordered
+     * considering the parent/child relationships.  The returned events also
+     * have the information about how deep in the tree they are.
+     */
     protected function getTreeViewInfo($events)
     {
         /*
-        * getTree returns a map with the structure parent/child like the following.
-        * [
-            [
-                "event": [info],
-                "children": [...]
-            ],
-            [
-                "event": [info],
-                "children": [...]
-            ]
-        ]
-        * Info has only what is needed to pretty print it in the campaign section,
-        * but more info can be added as well by using the variable $e.
-        */
-
-        foreach ($events as $e) {
-            $order[]= $e['order'];
-        }
-        // Workaround for when the order with other int
-        $minOrder = min($order);
-        function getTree(&$names, $order, $parentId, $events, $minOrder)
+         * This function builds a tree from the list of events, considering the
+         * parent/child relationship between them.
+         * [
+         *     [
+         *         "event": [info],
+         *         "children": [...]
+         *     ],
+         *     [
+         *         "event": [info],
+         *         "children": [...]
+         *     ]
+         * ]
+         * 'info' has only what is needed to pretty print it in the campaign
+         * section, but more info can be added as well by using the variable $e.
+         */
+        function buildTree(&$names, $parentId, $events, $depth)
         {
             foreach ($events as $e) {
-                // Each call to the function considers a specific order (the height in the tree structure)
-                $isOrder = $e['order'] == $order;
-                //IMPORTANT (PHP note): Do not change || by "or". The precedence of "or" is different and
-                // does not work here.
-                if ($isOrder) {
-                    $correctChild = ($e['parent_id'] == null) || ($e['parent_id'] == $parentId);
-
-                    if ($correctChild) {
-                        $id = $e['id'];
-                        $children = [];
-                        getTree($children, $order + 1, $id, $events, $minOrder);
-                        // Takes portion of data needed
-                        $sub_e = [
-                            'name' => $e['name'],
-                            'eventType' => $e['eventType'],
-                            'description' => $e['description'],
-                            'order' => $e['order'] - $minOrder,
-                            'percent' => $e['oPercent'],
-                            'logCount' => $e['oLogCount'],
-                            'type' => $e['type'],
-                            'decisionPath' => $e['decisionPath']
-                        ];
-                        $names[] = ["event" => $sub_e, "children" => $children];
-                    }
+                if ($e['parent_id'] == $parentId) {
+                    $id = $e['id'];
+                    $children = [];
+                    buildTree($children, $id, $events, $depth + 1);
+                    // Takes portion of data needed
+                    $sub_e = [
+                        'name' => $e['name'],
+                        'eventType' => $e['eventType'],
+                        'description' => $e['description'],
+                        'depth' => $depth,
+                        'percent' => $e['oPercent'],
+                        'logCount' => $e['oLogCount'],
+                        'type' => $e['type'],
+                        'decisionPath' => $e['decisionPath']
+                    ];
+                    $names[] = ["event" => $sub_e, "children" => $children];
                 }
             }
         };
-        $eventsDict = [];
 
-        // The value -1 is arbitrary. It will just be ignored for the root events as
-        // they have no parent.
-        getTree($eventsDict, $minOrder, null, $events, $minOrder);
+        $eventsTree = [];
+        buildTree($eventsTree, null, $events, 0);
 
-        //Step: convert dictionary to an array of events. Each with the needed info in the correct order.
-        function getArrayFromDict(&$array, $eventsDict)
+        /*
+         * This function just "flattens" a tree into a list.
+         */
+        function buildListFromTree(&$eventsList, $eventsTree)
         {
-            foreach ($eventsDict as $e) {
-                $array[] = $e['event'];
-                getArrayFromDict($array, $e['children']);
+            foreach ($eventsTree as $e) {
+                $eventsList[] = $e['event'];
+                buildListFromTree($eventsList, $e['children']);
             }
         }
 
-        $array = [];
-        getArrayFromDict($array, $eventsDict);
-        return $array;
+        $eventsList = [];
+        buildListFromTree($eventsList, $eventsTree);
+        return $eventsList;
     }
 }
