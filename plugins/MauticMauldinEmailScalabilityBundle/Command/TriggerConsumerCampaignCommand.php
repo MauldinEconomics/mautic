@@ -11,7 +11,7 @@ namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Command;
 use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Entity\Campaign;
 use Mautic\CampaignBundle\Event\CampaignTriggerEvent;
-use Mautic\CoreBundle\Command\ModeratedCommand;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueProcessingCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -20,13 +20,14 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 /**
  * Class TriggerConsumerCampaignCommand.
  */
-class TriggerConsumerCampaignCommand extends ModeratedCommand
+class TriggerConsumerCampaignCommand extends QueueProcessingCommand
 {
     /**
      * @var EventDispatcher
      */
     protected $dispatcher;
 
+    const DEFAULT_MAX_TIMEOUT = 10;
     /**
      * {@inheritdoc}
      */
@@ -42,15 +43,8 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                 'Trigger events for a specific campaign.  Otherwise, all campaigns will be triggered.',
                 null
             )
-            ->addOption('--batch-limit', '-l', InputOption::VALUE_OPTIONAL, 'Set batch size of contacts to process per round. Defaults to 100.', 100)
-            ->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', 10)
-            ->addOption(
-                '--max-events',
-                '-m',
-                InputOption::VALUE_OPTIONAL,
-                'Set max number of events to process per campaign for this script execution. Defaults to all.',
-                0
-            );
+            ->addOption('--scheduled-only', null, InputOption::VALUE_NONE, 'Trigger only scheduled events')
+            ->addOption('--negative-only', null, InputOption::VALUE_NONE, 'Trigger only negative events, i.e. with a "no" decision path.');
 
         parent::configure();
     }
@@ -58,36 +52,29 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function setup(InputInterface $input, OutputInterface $output)
     {
         $container = $this->getContainer();
 
         /** @var \MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\EventModelExtended $eventModel */
-        $eventModel = $container->get('mautic.mauldin.model.event');
-        $output->writeln('Loaded event model', OutputInterface::VERBOSITY_DEBUG);
+        $eventModel    = $container->get('mautic.mauldin.model.event');
+        $this->channel = $eventModel->getChannel();
+        $output->writeln('Loaded event eventModel', OutputInterface::VERBOSITY_DEBUG);
 
         /** @var \Mautic\CampaignBundle\Model\CampaignModel $campaignModel */
         $campaignModel = $container->get('mautic.campaign.model.campaign');
-        $output->writeln('Loaded campaign model', OutputInterface::VERBOSITY_DEBUG);
+        $output->writeln('Loaded campaign eventModel', OutputInterface::VERBOSITY_DEBUG);
 
         $this->dispatcher = $container->get('event_dispatcher');
         $translator       = $container->get('translator');
-        $em               = $container->get('doctrine')->getManager();
 
-        $id         = $input->getOption('campaign-id');
-        $batch      = $input->getOption('batch-limit');
-        $maxEvents  = $input->getOption('max-events');
-        $maxRetries = $input->getOption('max-retries');
+        $id = $input->getOption('campaign-id');
 
-        if (!$this->checkRunStatus($input, $output, $id)) {
-            return 0;
-        }
+        $scheduleOnly = $input->getOption('scheduled-only');
+        $negativeOnly = $input->getOption('negative-only');
 
-        if ($id) {
-            /** @var \Mautic\CampaignBundle\Entity\Campaign $campaign */
-            $campaign = $campaignModel->getEntity($id);
-
-            if ($campaign !== null && $campaign->isPublished()) {
+        $process = function ($campaign) use ($output, $translator, $negativeOnly, $scheduleOnly, $eventModel) {
+            if ($campaign->isPublished()) {
                 if (!$this->dispatchTriggerEvent($campaign)) {
                     return 0;
                 }
@@ -95,22 +82,37 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
                 $totalProcessed = 0;
 
                 $output->writeln(
-                    '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_consume', ['%id%' => $id]).'</info>',
+                    '<info>'.$translator->trans('mauldin.campaign.consume.triggering_queue', ['%id%' => $campaign->getId()]).'</info>',
                     OutputInterface::VERBOSITY_VERBOSE
                 );
 
-                $output->writeln(
-                    '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_consume').'</comment>',
-                    OutputInterface::VERBOSITY_VERY_VERBOSE
-                );
+                if (!$negativeOnly && !$scheduleOnly) {
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    //trigger starting action events for newly added contacts
+                    $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.starting').'</comment>');
+                    $eventModel->consumeStartingEvents($campaign, $totalProcessed, $output);
+                }
+                if (!$negativeOnly) {
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    //trigger scheduled action events for newly added contacts
+                    $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.scheduled').'</comment>');
+                    $eventModel->consumeScheduledEvents($campaign, $totalProcessed, $output);
+                }
+                if (!$scheduleOnly) {
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    //trigger negative action events for newly added contacts
+                    $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.negative').'</comment>');
+                    $eventModel->consumeNegativeEvents($campaign, $totalProcessed, $output);
+                }
+            }
+        };
 
-                // trigger starting action events for newly added contacts
-                $processed = $eventModel->consumeStartingEvents($campaign, $totalProcessed, $batch, $maxEvents, $output);
+        if ($id) {
+            /** @var \Mautic\CampaignBundle\Entity\Campaign $campaign */
+            $campaign = $campaignModel->getEntity($id);
 
-                $output->writeln(
-                    '<comment>'.$translator->trans('mauldin.campaign.trigger.events_consumed', ['%events%' => $processed]).'</comment>'."\n",
-                    OutputInterface::VERBOSITY_VERBOSE
-                );
+            if ($campaign !== null) {
+                $process($campaign);
             }
         } else {
             $campaigns = $campaignModel->getEntities(
@@ -120,61 +122,11 @@ class TriggerConsumerCampaignCommand extends ModeratedCommand
             );
 
             while (($c = $campaigns->next()) !== false) {
-                $totalProcessed = 0;
-
-                // Key is ID and not 0
                 $c = reset($c);
-
-                if ($c->isPublished()) {
-                    if (!$this->dispatchTriggerEvent($c)) {
-                        continue;
-                    }
-
-                    $output->writeln(
-                        '<info>'.$translator->trans('mauldin.campaign.trigger.triggering_consume', ['%id%' => $c->getId()]).'</info>',
-                        OutputInterface::VERBOSITY_VERBOSE
-                    );
-
-                    $output->writeln(
-                        '<comment>'.$translator->trans('mauldin.campaign.trigger.starting_consume').'</comment>',
-                        OutputInterface::VERBOSITY_VERBOSE
-                    );
-
-                    //trigger starting action events for newly added contacts
-                    $eventModel->consumeStartingEvents($c, $totalProcessed, $batch, $maxEvents, $output);
-                }
+                $process($c);
             }
-
-            // Timeout in $timeoutPeriod in seconds and give up on $maxRetries retries
-            // Reset counter on success
-            $timeoutPeriod  = 0.2;
-            $timeoutCounter = 0;
-
-            $channel = $eventModel->getChannel();
-
-            while ($channel->hasCallbacks() && ($timeoutCounter < $maxRetries)) {
-                try {
-                    $channel->wait($timeoutPeriod);
-                    $timeoutCounter = 0;
-                } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                    $timeoutCounter += 1;
-                    $output->writeln(
-                        sprintf('Campaign consumer wait timeout counter %d/%d.', $timeoutCounter, $maxRetries),
-                        OutputInterface::VERBOSITY_DEBUG
-                    );
-                } catch (\Exception $e) {
-                    $output->writeln(sprintf(
-                        '<error>error processing campaign %d</error> - %s',
-                        $campaignId,
-                        $e->getMessage()
-                    ));
-                }
-            }
-
             unset($campaigns);
         }
-
-        $this->completeRun();
 
         return 0;
     }

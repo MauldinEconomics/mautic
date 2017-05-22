@@ -9,17 +9,18 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Model;
 
+use DateTime;
+use Doctrine\DBAL\Types\Type;
 use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Entity\Campaign;
-use Mautic\CampaignBundle\Entity\Event;
-use Mautic\CampaignBundle\Event\CampaignDecisionEvent;
-use Mautic\CampaignBundle\Model\CampaignModel;
 use Mautic\CampaignBundle\Model\EventModel;
+use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Helper\ProgressBarHelper;
 use Mautic\LeadBundle\Entity\Lead;
-use Mautic\LeadBundle\Model\LeadModel;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
+use PhpAmqpLib\Message\AMQPMessage;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Security\Acl\Exception\Exception;
 
 /**
  * Class EventModel
@@ -28,7 +29,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class EventModelExtended extends EventModel
 {
     /** @var string */
-    const QUEUE_PREFIX = 'trigger_start-';
+    const START_QUEUE_PREFIX     = 'trigger_start';
+    const SCHEDULED_QUEUE_PREFIX = 'trigger_scheduled';
+    const NEGATIVE_QUEUE_PREFIX  = 'trigger_negative';
 
     /** @var ChannelHelper */
     protected $channelHelper;
@@ -76,8 +79,87 @@ class EventModelExtended extends EventModel
         return $this->channel;
     }
 
+    public static function splitActionEvents($campaignEvents)
+    {
+        $nonActionEvents = [];
+        $actionEvents    = [];
+        foreach ($campaignEvents as $id => $e) {
+            if (!empty($e['decisionPath']) && !empty($e['parent_id']) && $campaignEvents[$e['parent_id']]['eventType'] != 'condition') {
+                if ($e['decisionPath'] == 'no') {
+                    $nonActionEvents[$e['parent_id']][$id] = $e;
+                } elseif ($e['decisionPath'] == 'yes') {
+                    $actionEvents[$e['parent_id']][] = $id;
+                }
+            }
+        }
+
+        return ['action' => $actionEvents,
+            'nonAction'  => $nonActionEvents,
+        ];
+    }
+
     /**
-     * Consume the root level action(s) in campaign(s).
+     * Declare campaign queue and return a QueueReference.
+     *
+     * @param string $prefix
+     * @param int    $campaignId
+     *
+     * @return QueueReference
+     */
+    protected function declareCampaignQueue($prefix, $campaignId)
+    {
+        // Declare the channel's queue with $durable = true
+
+        return $this->getChannelHelper()->declareQueue(
+            $prefix.'-'.$campaignId,
+            $this->getChannel(),
+            true
+        );
+    }
+
+    /**
+     * Select leads for starting events.
+     *
+     * @param int  $campaignId
+     * @param int  $lastLeadId
+     * @param bool $limit
+     *
+     * @return array
+     */
+    public function paginateLeadsStartingEvents($campaignId,  $start, $limit = false)
+    {
+        $q = $this->em->getConnection()->createQueryBuilder();
+
+        $q->select('cl.lead_id')
+            ->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
+            ->where(
+                $q->expr()->andX(
+                    $q->expr()->eq('cl.campaign_id', (int) $campaignId),
+                    $q->expr()->gt('cl.lead_id', (int) $start),
+                    $q->expr()->eq('cl.manually_removed', ':false')
+                )
+            )
+            ->setParameter('false', false, 'boolean')
+            ->orderBy('cl.lead_id', 'ASC');
+
+        if (!empty($limit)) {
+            $q->setMaxResults($limit);
+        }
+
+        $results = $q->execute()->fetchAll();
+
+        $leads = [];
+        foreach ($results as $r) {
+            $leads[] = $r['lead_id'];
+        }
+
+        unset($results);
+
+        return $leads;
+    }
+
+    /**
+     * Trigger and queue the root level action(s) in campaign(s).
      *
      * @param Campaign        $campaign
      * @param                 $totalEventCount
@@ -89,7 +171,7 @@ class EventModelExtended extends EventModel
      *
      * @return int
      */
-    public function consumeStartingEvents(
+    public function triggerStartingEventsSelect(
         $campaign,
         &$totalEventCount,
         $limit = 100,
@@ -102,6 +184,125 @@ class EventModelExtended extends EventModel
 
         $campaignId = $campaign->getId();
 
+        $this->logger->debug('CAMPAIGN: Queuing starting events');
+
+        $repo         = $this->getRepository();
+        $campaignRepo = $this->getCampaignRepository();
+        $queue        = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId);
+
+        $events         = $repo->getRootLevelEvents($campaignId);
+        $rootEventCount = count($events);
+
+        if (empty($rootEventCount)) {
+            $this->logger->debug('CAMPAIGN: No events to trigger');
+
+            return ($returnCounts) ? [
+                'events'         => 0,
+                'evaluated'      => 0,
+                'executed'       => 0,
+                'totalEvaluated' => 0,
+                'totalExecuted'  => 0,
+            ] : 0;
+        }
+
+        // Get a lead count; if $leadId, then use this as a check to ensure lead is part of the campaign
+        $leadCount = $campaignRepo->getCampaignLeadCount($campaignId, $leadId, array_keys($events));
+
+        // Get a total number of events that will be processed
+        $totalStartingEvents = $leadCount * $rootEventCount;
+
+        if ($output) {
+            $output->writeln(
+                $this->translator->trans(
+                    'mautic.campaign.trigger.event_count',
+                    ['%events%' => $totalStartingEvents, '%batch%' => $limit]
+                )
+            );
+        }
+
+        if (empty($leadCount)) {
+            $this->logger->debug('CAMPAIGN: No contacts to process');
+
+            unset($events);
+
+            return ($returnCounts) ? [
+                'events'         => 0,
+                'evaluated'      => 0,
+                'executed'       => 0,
+                'totalEvaluated' => 0,
+                'totalExecuted'  => 0,
+            ] : 0;
+        }
+
+        // Try to save some memory
+        gc_enable();
+
+        $maxCount = ($max) ? $max : $totalStartingEvents;
+
+        if ($output) {
+            $progress = ProgressBarHelper::init($output, $maxCount);
+            $progress->start();
+        }
+
+        $this->logger->debug('CAMPAIGN: Processing the following events: '.implode(', ', array_keys($events)));
+
+        $batchCount = ceil($leadCount / $limit);
+
+        $batchIdx = 0;
+        // paginate
+        $lastId       = null;
+        $currentCount = 0;
+
+        for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
+            $this->logger->debug('CAMPAIGN: Batch #'.$batchIdx);
+
+            //  Paginate the lead list limit  with the batch size
+            if ($lastId == null) {
+                $campaignLeads = ($leadId) ? [$leadId] : $campaignRepo->getCampaignLeadIds($campaignId, 0, $limit, true);
+            } else {
+                $this->logger->debug('LAST BATCH ID #'.$lastId);
+                $campaignLeads = $this->paginateLeadsStartingEvents($campaignId, $lastId, $limit);
+            }
+
+            $queue->publish(implode(' ', $campaignLeads));
+
+            $lastId = array_values(array_slice($campaignLeads, -1))[0];
+            $currentCount += count($campaignLeads);
+            $totalEventCount += count($campaignLeads);
+            $progress->setProgress($currentCount);
+        }
+
+        if ($output) {
+            $progress->finish();
+            $output->writeln('');
+        }
+
+        $counts = [
+            'events' => $totalStartingEvents,
+        ];
+        $this->logger->debug('CAMPAIGN: Counts - '.var_export($counts, true));
+
+        return  $counts;
+    }
+
+    /**
+     * Consume the root level action(s) in campaign(s).
+     *
+     * @param Campaign $campaign
+     * @param $totalEventCount
+     * @param OutputInterface $output
+     *
+     * @return int
+     */
+    public function consumeStartingEvents(
+        $campaign,
+        &$totalEventCount,
+        OutputInterface $output = null
+    ) {
+        defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
+
+        $campaignId = $campaign->getId();
+
         $this->logger->debug('CAMPAIGN: Triggering starting events');
 
         $repo         = $this->getRepository();
@@ -109,7 +310,7 @@ class EventModelExtended extends EventModel
         $logRepo      = $this->getLeadEventLogRepository();
 
         // Create a channel and a queue for receiving  the events
-        $queue = $this->declareCampaignQueue($campaignId);
+        $queue = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId);
 
         if ($this->dispatcher->hasListeners(CampaignEvents::ON_EVENT_DECISION_TRIGGER)) {
             // Include decisions if there are listeners
@@ -134,9 +335,25 @@ class EventModelExtended extends EventModel
         // Try to save some memory
         gc_enable();
 
+        $batchDebugCounter = $rootExecutedCount = $evaluatedEventCount = $executedEventCount = 0;
+
         $this->logger->debug('CAMPAIGN: Processing the following events: '.implode(', ', array_keys($events)));
 
-        $callback = function ($msg) use ($output, $events, $eventSettings, $campaign, $campaignId) {
+        $callback = function ($msg) use (
+            $batchDebugCounter,
+            $evaluatedEventCount,
+            $decisionChildren,
+            $rootEventCount,
+            $executedEventCount,
+            $rootExecutedCount,
+            &$totalEventCount,
+            $output,
+            $events,
+            $eventSettings,
+            $campaign,
+            $campaignId,
+            $logRepo
+        ) {
             try {
                 // Get list of all campaign leads; start is always zero in practice because of $pendingOnly
                 $campaignLeads = explode(' ', $msg->body);
@@ -278,7 +495,7 @@ class EventModelExtended extends EventModel
                 ++$batchDebugCounter;
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (\Exception $e) {
-                $output->writeln('Exception while consuming message');
+                $output->writeln('Exception while consuming message starting events');
                 $output->writeln($e->getMessage());
             }
         };
@@ -289,89 +506,106 @@ class EventModelExtended extends EventModel
     }
 
     /**
-     * Get lead IDs of a campaign.
+     * Get a list of scheduled events.
      *
-     * @param            $campaignId
-     * @param int        $start
-     * @param bool|false $limit
-     * @param bool|false  getCampaignLeadIds
+     * @param $campaignId
+     * @param $start
+     * @param int $limit
      *
      * @return array
      */
-    public function getCampaignLeadIdsNext($campaignId, $lastLeadId, $start = 0, $limit = false, $pendingOnly = false)
+    public function paginateLeadsScheduledEvents($campaignId, $start, $limit = 0)
     {
-        $q = $this->em->getConnection()->createQueryBuilder();
+        $date = new DateTime();
+        $q    = $this->em->getConnection()->createQueryBuilder();
+        $q->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'o');
 
-        $q->select('cl.lead_id')
-            ->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
-            ->where(
+        if ($start === null) {
+            $q->where(
                 $q->expr()->andX(
-                    $q->expr()->eq('cl.campaign_id', (int) $campaignId),
-                    $q->expr()->andX(
-                        $q->expr()->gt('cl.lead_id', (int) $lastLeadId),
-                        $q->expr()->eq('cl.manually_removed', ':false'))
+                    $q->expr()->eq('campaign_id', (int) $campaignId),
+                    $q->expr()->eq('o.is_scheduled', ':true'),
+                    $q->expr()->lte('o.trigger_date', ':now')
                 )
             )
-            ->setParameter('false', false, 'boolean')
-            ->orderBy('cl.lead_id', 'ASC');
-
-        if (!empty($limit)) {
-            $q->setMaxResults($limit);
+                ->setParameter('now', $date, Type::DATETIME)
+                ->setParameter('true', true, 'boolean');
+        } else {
+            $q->where(
+                $q->expr()->andX(
+                    $q->expr()->eq('campaign_id', (int) $campaignId),
+                    $q->expr()->eq('o.is_scheduled', ':true'),
+                    $q->expr()->lte('o.trigger_date', ':now'),
+                    $q->expr()->gt('o.lead_id', (int) $start)
+                )
+            )
+                ->setParameter('now', $date, Type::DATETIME)
+                ->setParameter('true', true, 'boolean');
         }
 
-        if (!$pendingOnly && $start) {
-            $q->setFirstResult($start);
+        $q->select('id,lead_id, event_id')
+            ->orderBy('o.lead_id', 'ASC');
+
+        if ($limit) {
+            $q->setFirstResult(0)
+                ->setMaxResults($limit);
         }
 
         $results = $q->execute()->fetchAll();
 
-        $leads = [];
-        foreach ($results as $r) {
-            $leads[] = $r['lead_id'];
+        // Organize by lead
+        $logs = [];
+        foreach ($results as $e) {
+            $leadId = $e['lead_id'];
+            if ($logs[$leadId] === null) {
+                $logs[$leadId] = [];
+            }
+            unset($e['lead_id']);
+            $logs[$leadId][] = $e;
         }
-
         unset($results);
 
-        return $leads;
+        return $logs;
     }
 
     /**
-     * Trigger and queue the root level action(s) in campaign(s).
+     * Trigger Scheduled events.
      *
-     * @param Campaign        $campaign
-     * @param                 $totalEventCount
+     * @param Campaign $campaign
+     * @param $totalEventCount
      * @param int             $limit
      * @param bool            $max
      * @param OutputInterface $output
-     * @param int|null        $leadId
-     * @param bool|false      $returnCounts    If true, returns array of counters
+     * @param bool|false      $returnCounts If true, returns array of counters
      *
      * @return int
      */
-    public function triggerStartingEventsSelect(
-        $campaign,
-        &$totalEventCount,
-        $limit = 100,
-        $max = false,
-        OutputInterface $output = null,
-        $leadId = null,
-        $returnCounts = false
+    public function triggerScheduledEventsSelect(
+        $campaign, &$totalEventCount, $limit, $max, OutputInterface $output = null,  $returnCounts = false
     ) {
         defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
 
-        $campaignId = $campaign->getId();
+        $campaignId   = $campaign->getId();
+        $campaignName = $campaign->getName();
 
-        $this->logger->debug('CAMPAIGN: Queuing starting events');
+        $this->logger->debug('CAMPAIGN: Triggering scheduled events');
 
-        $repo         = $this->getRepository();
-        $campaignRepo = $this->getCampaignRepository();
-        $logRepo      = $this->getLeadEventLogRepository();
-        $queue        = $this->declareCampaignQueue($campaignId);
+        $repo = $this->getRepository();
 
-        $events         = $repo->getRootLevelEvents($campaignId);
-        $rootEventCount = count($events);
+        // Get a count
+        $totalScheduledCount = $repo->getScheduledEvents($campaignId, true);
+        $this->logger->debug('CAMPAIGN: '.$totalScheduledCount.' events scheduled to execute.');
 
-        if (empty($rootEventCount)) {
+        if ($output) {
+            $output->writeln(
+                $this->translator->trans(
+                    'mautic.campaign.trigger.event_count',
+                    ['%events%' => $totalScheduledCount, '%batch%' => $limit]
+                )
+            );
+        }
+
+        if (empty($totalScheduledCount)) {
             $this->logger->debug('CAMPAIGN: No events to trigger');
 
             return ($returnCounts) ? [
@@ -383,71 +617,41 @@ class EventModelExtended extends EventModel
             ] : 0;
         }
 
-        // Get a lead count; if $leadId, then use this as a check to ensure lead is part of the campaign
-        $leadCount = $campaignRepo->getCampaignLeadCount($campaignId, $leadId, array_keys($events));
+        // Create a channel and a queue for receiving  the events
 
-        // Get a total number of events that will be processed
-        $totalStartingEvents = $leadCount * $rootEventCount;
+        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId);
 
-        if ($output) {
-            $output->writeln(
-                $this->translator->trans(
-                    'mautic.campaign.trigger.event_count',
-                    ['%events%' => $totalStartingEvents, '%batch%' => $limit]
-                )
-            );
-        }
-
-        if (empty($leadCount)) {
-            $this->logger->debug('CAMPAIGN: No contacts to process');
-
-            unset($events);
-
-            return ($returnCounts) ? [
-                'events'         => 0,
-                'evaluated'      => 0,
-                'executed'       => 0,
-                'totalEvaluated' => 0,
-                'totalExecuted'  => 0,
-            ] : 0;
-        }
+        $evaluatedEventCount = $executedEventCount = $scheduledEvaluatedCount = $scheduledExecutedCount = 0;
+        $maxCount            = ($max) ? $max : $totalScheduledCount;
 
         // Try to save some memory
         gc_enable();
 
-        $maxCount = ($max) ? $max : $totalStartingEvents;
-
         if ($output) {
             $progress = ProgressBarHelper::init($output, $maxCount);
             $progress->start();
+            if ($max) {
+                $progress->setProgress($totalEventCount);
+            }
         }
+        $batchCount = ceil($totalScheduledCount / $limit);
 
-        $this->logger->debug('CAMPAIGN: Processing the following events: '.implode(', ', array_keys($events)));
-
-        $batchCount = ceil($leadCount / $limit);
-
-        $batchIdx = 0;
         // paginate
-        $lastId       = null;
+        $lastLead     = null;
         $currentCount = 0;
 
-        while ($batchIdx < $batchCount) {
-            ++$batchIdx;
-            $this->logger->debug('CAMPAIGN: Batch #'.$batchDebugCounter);
+        for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
+            $this->logger->debug('CAMPAIGN: Batch #'.$batchIdx);
 
-            //  Paginate the lead list limit  with the batch size
-            if ($lastId == null) {
-                $campaignLeads = ($leadId) ? [$leadId] : $campaignRepo->getCampaignLeadIds($campaignId, 0, $limit, true);
-            } else {
-                $this->logger->debug('LAST BATCH ID #'.$lastId);
-                $campaignLeads = $this->getCampaignLeadIdsNext($campaignId, $lastId, 0, $limit, true);
-            }
+            $events = $this->paginateLeadsScheduledEvents($campaignId, $lastLead,  $limit);
 
-            $queue->publish(implode(' ', $campaignLeads));
+            $msg = new AMQPMessage(serialize($events));
+            $queue->publish($msg);
 
-            $lastId = array_values(array_slice($campaignLeads, -1))[0];
-            $currentCount += count($campaignLeads);
+            $currentCount += count($events);
             $progress->setProgress($currentCount);
+            end($events);
+            $lastLead = key($events);
         }
 
         if ($output) {
@@ -455,12 +659,10 @@ class EventModelExtended extends EventModel
             $output->writeln('');
         }
 
-        // TODO: This counter does not work anymore because the events are now processed
-        //  in other thread
         $counts = [
-            'events'         => $totalStartingEvents,
-            'evaluated'      => $rootEvaluatedCount,
-            'executed'       => $rootExecutedCount,
+            'events'         => $totalScheduledCount,
+            'evaluated'      => $scheduledEvaluatedCount,
+            'executed'       => $scheduledExecutedCount,
             'totalEvaluated' => $evaluatedEventCount,
             'totalExecuted'  => $executedEventCount,
         ];
@@ -470,20 +672,590 @@ class EventModelExtended extends EventModel
     }
 
     /**
-     * Declare campaign queue and return a QueueReference.
+     * Consume leads from scheduled queue.
+     *
+     * @param Campaign $campaign
+     * @param $totalEventCount
+     * @param OutputInterface $output
+     *
+     * @return int
+     */
+    public function consumeScheduledEvents(
+        $campaign, &$totalEventCount, OutputInterface $output = null
+    ) {
+        defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
+
+        $campaignId   = $campaign->getId();
+        $campaignName = $campaign->getName();
+
+        $this->logger->debug('CAMPAIGN: Consume triggered scheduled events');
+
+        $repo = $this->getRepository();
+
+        // Get events to avoid joins
+        $campaignEvents = $repo->getCampaignActionAndConditionEvents($campaignId);
+
+        if (empty($campaignEvents)) {
+            // No non-action events associated with this campaign
+            unset($campaignEvents);
+
+            return 0;
+        }
+        // Event settings
+        $eventSettings = $this->campaignModel->getEvents();
+
+        // Create a channel and a queue for receiving  the events
+
+        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId);
+
+        $evaluatedEventCount = $executedEventCount = $scheduledEvaluatedCount = $scheduledExecutedCount = 0;
+
+        // Try to save some memory
+        gc_enable();
+
+        $batchDebugCounter = 0;
+        $callback          = function ($msg) use (
+            &$batchDebugCounter,
+            &$scheduledEvaluatedCount,
+            &$scheduledExecutedCount,
+            &$evaluatedEventCount,
+            &$executedEventCount,
+            &$totalEventCount,
+            $output,
+            $campaignEvents,
+            $eventSettings,
+            $campaign,
+            $campaignName,
+            $campaignId
+        ) {
+            try {
+                $events = unserialize($msg->body);
+
+                $leads = $this->leadModel->getEntities(
+                    [
+                        'filter' => [
+                            'force' => [
+                                [
+                                    'column' => 'l.id',
+                                    'expr'   => 'in',
+                                    'value'  => array_keys($events),
+                                ],
+                            ],
+                        ],
+                        'orderBy'            => 'l.id',
+                        'orderByDir'         => 'asc',
+                        'withPrimaryCompany' => true,
+                        'withChannelRules'   => true,
+                    ]
+                );
+
+                $this->em->getConnection()->beginTransaction();
+
+                $this->logger->debug('CAMPAIGN: Processing the following contacts '.implode(', ', array_keys($events)));
+                $leadDebugCounter = 1;
+                foreach ($events as $leadId => $leadEvents) {
+                    if (!isset($leads[$leadId])) {
+                        $this->logger->debug('CAMPAIGN: Lead ID# '.$leadId.' not found');
+
+                        continue;
+                    }
+
+                    /** @var Lead $lead */
+                    $lead = $leads[$leadId];
+
+                    $this->logger->debug('CAMPAIGN: Current Lead ID# '.$lead->getId().'; #'.$leadDebugCounter.' in batch #'.$batchDebugCounter);
+
+                    // Set lead in case this is triggered by the system
+                    $this->leadModel->setSystemCurrentLead($lead);
+
+                    $this->logger->debug('CAMPAIGN: Processing the following events for contact ID '.$leadId.': '.implode(', ', array_keys($leadEvents)));
+
+                    foreach ($leadEvents as $log) {
+                        ++$scheduledEvaluatedCount;
+
+                        $event = $campaignEvents[$log['event_id']];
+
+                        // Set campaign ID
+                        $event['campaign'] = [
+                            'id'   => $campaignId,
+                            'name' => $campaignName,
+                        ];
+
+                        // Execute event
+                        if ($this->executeEvent(
+                            $event,
+                            $campaign,
+                            $lead,
+                            $eventSettings,
+                            false,
+                            null,
+                            true,
+                            $log['id'],
+                            $evaluatedEventCount,
+                            $executedEventCount,
+                            $totalEventCount
+                        )
+                        ) {
+                            ++$scheduledExecutedCount;
+                        }
+                    }
+
+                    ++$leadDebugCounter;
+                }
+
+                // Free RAM
+                $this->em->flush();
+                $this->em->getConnection()->commit();
+                $this->em->clear('Mautic\LeadBundle\Entity\Lead');
+                $this->em->clear('Mautic\UserBundle\Entity\User');
+                unset($events, $leads);
+
+                // Free some memory
+                gc_collect_cycles();
+
+                ++$batchDebugCounter;
+
+                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
+                $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+            } catch (Exception $e) {
+                $output->writeln('Exception while consuming message scheduled events');
+                $output->writeln($e);
+            }
+        };
+
+        $queue->consume($callback);
+
+        return 1;
+    }
+
+    /**
+     * Paginate over leads for negative events.
      *
      * @param $campaignId
+     * @param $start
+     * @param bool $limit
      *
-     * @return MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference
+     * @return array
      */
-    protected function declareCampaignQueue($campaignId)
+    public function paginateLeadsNegativeEvents($campaignId, $start, $limit = false)
     {
-        // Declare the channel's queue with $durable = true
+        $q = $this->em->getConnection()->createQueryBuilder();
 
-        return $this->getChannelHelper()->declareQueue(
-            self::QUEUE_PREFIX.$campaignId,
-            $this->getChannel(),
-            true
-        );
+        if ($start == null) {
+            $subExpr = $q->expr()->andX(
+                $q->expr()->eq('cl.campaign_id', (int) $campaignId),
+                $q->expr()->eq('cl.manually_removed', ':false'));
+        } else {
+            $subExpr = $q->expr()->andX(
+                $q->expr()->eq('cl.campaign_id', (int) $campaignId),
+                $q->expr()->gt('cl.lead_id', (int) $start),
+                $q->expr()->eq('cl.manually_removed', ':false'));
+        }
+
+        $q->select('cl.lead_id,cl.date_added')
+            ->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
+            ->where($subExpr)
+            ->setParameter('false', false, 'boolean')
+            ->orderBy('cl.lead_id', 'ASC');
+
+        if (!empty($limit)) {
+            $q->setMaxResults($limit);
+        }
+
+        $results = $q->execute()->fetchAll();
+
+        return $results;
+    }
+
+    /**
+     * Find and trigger the negative events, i.e. the events with a no decision path.
+     *
+     * @param Campaign        $campaign
+     * @param int             $totalEventCount
+     * @param int             $limit
+     * @param bool            $max
+     * @param OutputInterface $output
+     * @param bool|false      $returnCounts    If true, returns array of counters
+     *
+     * @return int
+     */
+    public function triggerNegativeEventsSelect(
+        $campaign, &$totalEventCount, $limit, $max, OutputInterface $output = null, $returnCounts = false
+    ) {
+        defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
+
+        $this->logger->debug('CAMPAIGN: Triggering negative events');
+
+        $campaignId = $campaign->getId();
+
+        $repo         = $this->getRepository();
+        $campaignRepo = $this->getCampaignRepository();
+
+        // Get events to avoid large number of joins
+        $campaignEvents = $repo->getCampaignEvents($campaignId);
+
+        // Event settings
+        $eventSettings = $this->campaignModel->getEvents();
+
+        $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId);
+        // Get an array of events that are non-action based
+
+        $eventsSplit = self::splitActionEvents($campaignEvents);
+
+        $this->logger->debug('CAMPAIGN: Processing the children of the following events: '.implode(', ', array_keys($eventsSplit['nonAction'])));
+        if (empty($eventsSplit['nonAction'])) {
+            // No non-action events associated with this campaign
+            unset($campaignEvents);
+
+            return 0;
+        }
+
+        // Get a count
+        $leadCount = $campaignRepo->getCampaignLeadCount($campaignId);
+
+        if ($output) {
+            $output->writeln(
+                $this->translator->trans(
+                    'mautic.campaign.trigger.lead_count_analyzed',
+                    ['%leads%' => $leadCount, '%batch%' => $limit]
+                )
+            );
+        }
+
+        $executedEventCount  = $evaluatedEventCount  = $negativeExecutedCount  = $negativeEvaluatedCount  = 0;
+        $nonActionEventCount = $leadCount * count($eventsSplit['nonAction']);
+        $maxCount            = ($max) ? $max : $nonActionEventCount;
+
+        // Try to save some memory
+        gc_enable();
+
+        if ($leadCount) {
+            if ($output) {
+                $progress = ProgressBarHelper::init($output, $maxCount);
+                $progress->start();
+                if ($max) {
+                    $progress->advance($totalEventCount);
+                }
+            }
+
+            $batchDebugCounter = 1;
+            $batchCount        = ceil($nonActionEventCount / $limit);
+
+            // paginate
+            $lastLead     = null;
+            $currentCount = 0;
+
+            for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
+                $this->logger->debug('CAMPAIGN: Batch #'.$batchDebugCounter);
+
+                // Get batched campaign ids
+
+                $this->logger->debug('LAST BATCH ID #'.$lastLead);
+
+                $campaignLeads = $this->paginateLeadsNegativeEvents($campaignId, $lastLead,  $limit);
+
+                $campaignLeadIds   = [];
+                $campaignLeadDates = [];
+                foreach ($campaignLeads as $r) {
+                    $campaignLeadIds[]                = $r['lead_id'];
+                    $campaignLeadDates[$r['lead_id']] = $r['date_added'];
+                }
+
+                unset($campaignLeads);
+
+                $this->logger->debug('CAMPAIGN: Processing the following contacts: '.implode(', ', $campaignLeadIds));
+
+                foreach ($eventsSplit['nonAction'] as $parentId => $events) {
+                    // Just a check to ensure this is an appropriate action
+                    if ($campaignEvents[$parentId]['eventType'] === 'action') {
+                        $this->logger->debug('CAMPAIGN: Parent event ID #'.$parentId.' is an action.');
+
+                        continue;
+                    }
+
+                    // Get only leads who have had the action prior to the decision executed
+                    $grandParentId = $campaignEvents[$parentId]['parent_id'];
+
+                    // Get the lead log for this batch of leads limiting to those that have already triggered
+                    // the decision's parent and haven't executed this level in the path yet
+                    if ($grandParentId) {
+                        $this->logger->debug('CAMPAIGN: Checking for contacts based on grand parent execution.');
+
+                        $leadLog                    = $repo->getEventLog($campaignId, $campaignLeadIds, [$grandParentId], array_keys($events), true);
+                        $applicableLeads[$parentId] = array_keys($leadLog);
+                    } else {
+                        $this->logger->debug('CAMPAIGN: Checking for contacts based on exclusion due to being at root level');
+
+                        // The event has no grandparent (likely because the decision is first in the campaign) so find leads that HAVE
+                        // already executed the events in the root level and exclude them
+                        $havingEvents = (isset($eventsSplit['action'][$parentId])) ? array_merge($eventsSplit['action'][$parentId], array_keys($events)) : array_keys(
+                            $events
+                        );
+                        $leadLog           = $repo->getEventLog($campaignId, $campaignLeadIds, $havingEvents);
+                        $unapplicableLeads = array_keys($leadLog);
+
+                        // Only use leads that are not applicable
+                        $applicableLeads[$parentId] = array_diff($campaignLeadIds, $unapplicableLeads);
+
+                        unset($unapplicableLeads);
+                    }
+
+                    if (empty($applicableLeads[$parentId])) {
+                        $this->logger->debug('CAMPAIGN: No events are applicable');
+
+                        continue;
+                    }
+                    $leadEventMap     = [];
+                    $leadDebugCounter = 1;
+                    foreach ($applicableLeads[$parentId] as $lead) {
+                        ++$negativeEvaluatedCount;
+
+                        $this->logger->debug('CAMPAIGN: contact ID #'.$lead.'; #'.$leadDebugCounter.' in batch #'.$batchDebugCounter);
+
+                        // Prevent path if lead has already gone down this path
+                        if (!isset($leadLog[$lead]) || !array_key_exists($parentId, $leadLog[$lead])) {
+
+                            // Get date to compare against
+                            $utcDateString = ($grandParentId) ? $leadLog[$lead][$grandParentId]['date_triggered'] : $campaignLeadDates[$lead];
+
+                            // Convert to local DateTime
+                            $grandParentDate = (new DateTimeHelper($utcDateString))->getLocalDateTime();
+
+                            // Non-decision has not taken place yet, so cycle over each associated action to see if timing is right
+                            $eventTiming   = [];
+                            $executeAction = false;
+                            foreach ($events as $id => $e) {
+                                if (isset($leadLog[$lead]) && array_key_exists($id, $leadLog[$lead])) {
+                                    $this->logger->debug('CAMPAIGN: Event (ID #'.$id.') has already been executed');
+                                    echo 'already executed\n';
+                                    unset($e);
+                                    continue;
+                                }
+
+                                if (!isset($eventSettings[$e['eventType']][$e['type']])) {
+                                    echo 'no longer exists\n';
+                                    $this->logger->debug('CAMPAIGN: Event (ID #'.$id.') no longer exists');
+                                    unset($e);
+                                    continue;
+                                }
+
+                                // First get the timing for all the 'non-decision' actions
+                                $eventTiming[$id] = $this->checkEventTiming($e, $grandParentDate, true);
+                                if ($eventTiming[$id] === true) {
+                                    // Includes events to be executed now then schedule the rest if applicable
+                                    $executeAction = true;
+                                }
+
+                                unset($e);
+                            }
+                            if ($executeAction) {
+                                $leadEventMap[$lead] = $eventTiming;
+                            }
+                        }
+                    }
+                    if (!empty($leadEventMap)) {
+                        $applicableLeads[$parentId] = $leadEventMap;
+                    } else {
+                        unset($applicableLeads[$parentId]);
+                    }
+                }
+                if (!empty($leadEventMap)) {
+                    $msg = new AMQPMessage(serialize($applicableLeads));
+                    $queue->publish($msg);
+                }
+
+                $currentCount += count($campaignLeadIds);
+                $progress->setProgress($currentCount);
+
+                $lastLead = end($campaignLeadIds);
+            }
+        }
+
+        $counts = [
+            'events'         => $nonActionEventCount,
+            'evaluated'      => $negativeEvaluatedCount,
+            'executed'       => $negativeExecutedCount,
+            'totalEvaluated' => $evaluatedEventCount,
+            'totalExecuted'  => $executedEventCount,
+        ];
+        $this->logger->debug('CAMPAIGN: Counts - '.var_export($counts, true));
+
+        return ($returnCounts) ? $counts : $executedEventCount;
+    }
+
+    /**
+     * @param Campaign $campaign
+     * @param $totalEventCount
+     * @param OutputInterface $output
+     *
+     * @return int
+     */
+    public function consumeNegativeEvents(
+        $campaign, &$totalEventCount, OutputInterface $output = null
+    ) {
+        defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
+
+        $campaignId   = $campaign->getId();
+        $campaignName = $campaign->getName();
+
+        $this->logger->debug('CAMPAIGN: Triggering negative events');
+        $logRepo = $this->getLeadEventLogRepository();
+        $repo    = $this->getRepository();
+
+        // Get events to avoid joins
+        $campaignEvents = $repo->getCampaignEvents($campaignId);
+
+        // Get an array of events that are non-action based
+        $eventsSplit = self::splitActionEvents($campaignEvents);
+        $this->logger->debug('CAMPAIGN: Processing the children of the following events: '.implode(', ', array_keys($eventsSplit['nonAction'])));
+        if (empty($eventsSplit['nonAction'])) {
+            // No non-action events associated with this campaign
+            unset($campaignEvents);
+
+            return 0;
+        }
+        // Event settings
+        $eventSettings = $this->campaignModel->getEvents();
+
+        // Create a channel and a queue for receiving  the events
+
+        $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId);
+
+        // Try to save some memory
+        gc_enable();
+
+        $batchDebugCounter = 0;
+        $callback          = function ($msg) use (
+            &$totalEventCount,
+            &$batchDebugCounter,
+            $campaignName,
+            $logRepo,
+            $output,
+            $eventsSplit,
+            $eventSettings,
+            $campaign,
+            $campaignId
+        ) {
+            try {
+                ++$batchDebugCounter;
+                $applicableLeadsList = unserialize($msg->body);
+                $this->em->getConnection()->beginTransaction();
+                foreach ($applicableLeadsList as $parentId => $applicableLeads) {
+                    $events = $eventsSplit['nonAction'][$parentId];
+                    $this->logger->debug('CAMPAIGN: These contacts have not gone down the positive path: '.implode(', ', $applicableLeads));
+
+                    // Get the leads
+                    $leads = $this->leadModel->getEntities(
+                        [
+                            'filter' => [
+                                'force' => [
+                                    [
+                                        'column' => 'l.id',
+                                        'expr'   => 'in',
+                                        'value'  => array_keys($applicableLeads),
+                                    ],
+                                ],
+                            ],
+                            'orderBy'            => 'l.id',
+                            'orderByDir'         => 'asc',
+                            'withPrimaryCompany' => true,
+                            'withChannelRules'   => true,
+                        ]
+                    );
+
+                    // Loop over the non-actions and determine if it has been processed for this lead
+
+                    $leadDebugCounter = 1;
+                    /** @var Lead $lead */
+                    foreach ($leads as $lead) {
+
+                        // Set lead for listeners
+                        $this->leadModel->setSystemCurrentLead($lead);
+
+                        $this->logger->debug('CAMPAIGN: contact ID #'.$lead->getId().'; #'.$leadDebugCounter.' in batch #'.$batchDebugCounter);
+
+                        if ($applicableLeads[$lead->getId()] !== null) {
+                            $eventTiming = $applicableLeads[$lead->getId()];
+                        } else {
+                            continue;
+                        }
+
+                        $decisionLogged = false;
+
+                        // Execute or schedule events
+                        $this->logger->debug(
+                            'CAMPAIGN: Processing the following events for contact ID# '.$lead->getId().': '.implode(
+                                ', ', array_keys($eventTiming)
+                            )
+                        );
+
+                        foreach ($eventTiming as $id => $eventTriggerDate) {
+                            // Set event
+                            $event             = $events[$id];
+                            $event['campaign'] = [
+                                'id'   => $campaignId,
+                                'name' => $campaignName,
+                            ];
+
+                            // Set lead in case this is triggered by the system
+                            $this->leadModel->setSystemCurrentLead($lead);
+
+                            if ($this->executeEvent(
+                                $event,
+                                $campaign,
+                                $lead,
+                                $eventSettings,
+                                false,
+                                null,
+                                $eventTriggerDate,
+                                false,
+                                $evaluatedEventCount,
+                                $executedEventCount,
+                                $totalEventCount
+                            )
+                            ) {
+                                if (!$decisionLogged) {
+                                    // Log the decision
+                                    $log = $this->getLogEntity($parentId, $campaign, $lead, null, true);
+                                    $log->setDateTriggered(new DateTime());
+                                    $log->setNonActionPathTaken(true);
+                                    $logRepo->saveEntity($log);
+                                    $this->em->detach($log);
+                                    unset($log);
+
+                                    $decisionLogged = true;
+                                }
+                            }
+                        }
+
+                        ++$leadDebugCounter;
+
+                        // Save RAM
+                        $this->em->detach($lead);
+                        unset($lead);
+                    }
+                }
+                // Save RAM
+                $this->em->flush();
+                $this->em->getConnection()->commit();
+                $this->em->clear('Mautic\LeadBundle\Entity\Lead');
+                $this->em->clear('Mautic\UserBundle\Entity\User');
+
+                unset($leads);
+
+                // Free some memory
+                gc_collect_cycles();
+
+                ++$batchDebugCounter;
+                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
+                $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+            } catch (Exception $e) {
+                $output->writeln('Exception while consuming message of negative events');
+                $output->writeln($e);
+            }
+        };
+        $queue->consume($callback);
+
+        return 1;
     }
 }

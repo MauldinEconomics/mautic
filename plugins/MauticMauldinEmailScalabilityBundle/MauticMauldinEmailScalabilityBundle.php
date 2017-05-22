@@ -11,10 +11,16 @@ namespace MauticPlugin\MauticMauldinEmailScalabilityBundle;
 
 use Mautic\PluginBundle\Bundle\PluginBundleBase;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\DependencyInjection\Compiler\QueuedTransportPass;
+use Swift_Preferences;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 class MauticMauldinEmailScalabilityBundle extends PluginBundleBase
 {
+    public function boot()
+    {
+        Swift_Preferences::getInstance()->setCacheType('array');
+    }
+
     /**
      * Build.
      *
