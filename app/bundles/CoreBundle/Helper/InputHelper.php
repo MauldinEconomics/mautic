@@ -402,7 +402,7 @@ class InputHelper
             // Special handling for HTML comments
             $value = str_replace(['<!--', '-->'], ['<mcomment>', '</mcomment>'], $value, $commentCount);
 
-            // $value = self::getFilter(true)->clean($value, 'html');
+            $value = self::getFilter(true)->clean($value, 'html');
 
             // Was a doctype found?
             if ($doctypeFound) {
