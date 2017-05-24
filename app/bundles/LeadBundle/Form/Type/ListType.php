@@ -20,6 +20,7 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\LeadBundle\Form\DataTransformer\FieldFilterTransformer;
 use Mautic\LeadBundle\Helper\FormFieldHelper;
 use Mautic\LeadBundle\Model\LeadModel;
+use Mautic\AssetBundle\Model\AssetModel;
 use Mautic\LeadBundle\Model\ListModel;
 use Mautic\StageBundle\Model\StageModel;
 use Symfony\Component\Form\AbstractType;
@@ -41,6 +42,7 @@ class ListType extends AbstractType
     private $regionChoices     = [];
     private $listChoices       = [];
     private $emailChoices      = [];
+    private $assetChoices      = [];
     private $tagChoices        = [];
     private $stageChoices      = [];
     private $localeChoices     = [];
@@ -58,7 +60,7 @@ class ListType extends AbstractType
      * @param CategoryModel       $categoryModel
      * @param UserHelper          $userHelper
      */
-    public function __construct(TranslatorInterface $translator, ListModel $listModel, EmailModel $emailModel, CorePermissions $security, LeadModel $leadModel, StageModel $stageModel, CategoryModel $categoryModel, UserHelper $userHelper)
+    public function __construct(TranslatorInterface $translator, ListModel $listModel, EmailModel $emailModel, CorePermissions $security, LeadModel $leadModel, AssetModel $assetModel, StageModel $stageModel, CategoryModel $categoryModel, UserHelper $userHelper)
     {
         $this->translator = $translator;
 
@@ -88,6 +90,12 @@ class ListType extends AbstractType
             $this->emailChoices[$email['language']][$email['id']] = $email['name'];
         }
         ksort($this->emailChoices);
+
+        $assets = $assetModel->getLookupResults('asset');
+        foreach ($assets as $asset) {
+            $this->assetChoices[$asset['language']][$asset['id']] = $asset['title'];
+        }
+        ksort($this->assetChoices);
 
         $tags = $leadModel->getTagList();
         foreach ($tags as $tag) {
@@ -176,6 +184,7 @@ class ListType extends AbstractType
                         'fields'         => $this->fieldChoices,
                         'lists'          => $this->listChoices,
                         'emails'         => $this->emailChoices,
+                        'assets'         => $this->assetChoices,
                         'tags'           => $this->tagChoices,
                         'stage'          => $this->stageChoices,
                         'locales'        => $this->localeChoices,
@@ -220,6 +229,7 @@ class ListType extends AbstractType
         $view->vars['timezones']      = $this->timezoneChoices;
         $view->vars['lists']          = $this->listChoices;
         $view->vars['emails']         = $this->emailChoices;
+        $view->vars['assets']         = $this->assetChoices;
         $view->vars['tags']           = $this->tagChoices;
         $view->vars['stage']          = $this->stageChoices;
         $view->vars['locales']        = $this->localeChoices;
