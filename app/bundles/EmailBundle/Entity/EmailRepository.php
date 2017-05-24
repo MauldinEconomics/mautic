@@ -610,6 +610,8 @@ class EmailRepository extends CommonRepository
         $expr->add(
             $qb->expr()->eq($this->getTableAlias().'.emailType', $qb->expr()->literal('list'))
         );
+        $expr->add($qb->expr()->isNull($this->getTableAlias().'.variantParent'));
+        $expr->add($qb->expr()->isNull($this->getTableAlias().'.translationParent'));
 
         if (!empty($id)) {
             $expr->add(

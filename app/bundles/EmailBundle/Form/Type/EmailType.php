@@ -431,7 +431,38 @@ class EmailType extends AbstractType
             )
                 ->addModelTransformer($transformer)
         );
+        $builder->add(
+            'autoRolloutDate',
+            'datetime',
+            [
+                'widget'     => 'single_text',
+                'label'      => 'mautic.email.form.auto_rollout_date',
+                'label_attr' => ['class' => 'control-label'],
+                'attr'       => [
+                    'class'       => 'form-control',
+                    'data-toggle' => 'datetime',
+                    'tooltip'      => 'mautic.email.form.auto_rollout_date.tooltip',
+                ],
+                'format'   => 'yyyy-MM-dd HH:mm',
+                'required' => false,
+            ]
+        );
 
+        $builder->add(
+            'sampleSize',
+            'number',
+            [
+                'label'      => 'mautic.email.form.sample_size',
+                'label_attr' => ['class' => 'control-label'],
+                'attr'       => [
+                    'class'       => 'form-control',
+                    'preaddon' => 'symbol-percentage',
+                    'tooltip' => 'mautic.email.form.sample_size.tooltip'
+
+                ],
+                'required' => false,
+            ]
+        );
         $builder->add(
             'language',
             'locale',
