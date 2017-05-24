@@ -64,10 +64,11 @@ class AjaxController extends CommonAjaxController
             $session              = $this->get('session');
             $progress             = $session->get('mautic.email.send.progress', [0, (int) $pending]);
             $stats                = $session->get('mautic.email.send.stats', ['sent' => 0, 'failed' => 0, 'failedRecipients' => []]);
+            $lastLead             = $session->get('mautic.email.send.lastlead', null);
 
             if ($pending && !$inProgress = $session->get('mautic.email.send.active', false)) {
                 $session->set('mautic.email.send.active', true);
-                list($batchSentCount, $batchFailedCount, $batchFailedRecipients) = $model->sendEmailToLists($entity, null, $limit);
+                list($batchSentCount, $batchFailedCount, $batchFailedRecipients,$lastLead2) = $model->sendEmailToLists($entity, null, $limit, false, null, $lastLead);
 
                 $progress[0] += ($batchSentCount + $batchFailedCount);
                 $stats['sent'] += $batchSentCount;
@@ -80,10 +81,14 @@ class AjaxController extends CommonAjaxController
                 $session->set('mautic.email.send.progress', $progress);
                 $session->set('mautic.email.send.stats', $stats);
                 $session->set('mautic.email.send.active', false);
+                $session->set('mautic.email.send.lastlead', $lastLead2);
             }
 
             $dataArray['percent'] = ($progress[1]) ? ceil(($progress[0] / $progress[1]) * 100) : 100;
 
+            if($dataArray['percent'] == 100) {
+                $session->set('mautic.email.send.lastlead', null);
+            }
             $dataArray['progress'] = $progress;
             $dataArray['stats']    = $stats;
         }

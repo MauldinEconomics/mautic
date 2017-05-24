@@ -153,6 +153,9 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
      */
     private $stats;
 
+    private $autoRolloutDate;
+
+    private $sampleSize;
     /**
      * @var int
      */
@@ -287,6 +290,14 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
             ->build();
 
         $builder->addPublishDates();
+
+        $builder->createField('autoRolloutDate', 'datetime')
+            ->columnName('auto_rollout_date')
+            ->build();
+
+        $builder->createField('sampleSize', 'integer')
+            ->columnName('sample_size')
+            ->build();
 
         $builder->createField('readCount', 'integer')
             ->columnName('read_count')
@@ -471,6 +482,8 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
                     'emailType',
                     'publishUp',
                     'publishDown',
+                    'autoRolloutDate',
+                    'sampleSize',
                     'readCount',
                     'sentCount',
                     'revision',
@@ -1138,5 +1151,37 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
         } else {
             return 0;
         }
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSampleSize()
+    {
+        return $this->sampleSize;
+    }
+
+    /**
+     * @param mixed $sampleSize
+     */
+    public function setSampleSize($sampleSize)
+    {
+        $this->sampleSize = $sampleSize;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getAutoRolloutDate()
+    {
+        return $this->autoRolloutDate;
+    }
+
+    /**
+     * @param mixed $autoRolloutDate
+     */
+    public function setAutoRolloutDate($autoRolloutDate)
+    {
+        $this->autoRolloutDate = $autoRolloutDate;
     }
 }

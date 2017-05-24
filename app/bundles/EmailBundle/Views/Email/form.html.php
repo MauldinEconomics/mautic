@@ -194,6 +194,10 @@ $isCodeMode = ($email->getTemplate() === 'mautic_code_mode');
             <?php else: ?>
             <div id="leadList"<?php echo ($emailType == 'template') ? ' class="hide"' : ''; ?>>
                 <?php echo $view['form']->row($form['lists']); ?>
+                <?php echo $view['form']->row($form['autoRolloutDate']); ?>
+                <?php echo $view['form']->row($form['sampleSize']); ?>
+            </div>
+            <div id="leadList"<?php echo ($emailType == 'template') ? ' class="hide"' : ''; ?>>
             </div>
             <?php echo $view['form']->row($form['category']); ?>
             <?php echo $view['form']->row($form['language']); ?>
