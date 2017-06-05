@@ -166,6 +166,7 @@ class ResultController extends CommonFormController
                         'form:forms:editother',
                         $form->getCreatedBy()
                     ),
+                    'canExport' => $this->get('mautic.security')->isGranted('form:batch:export'),
                 ],
                 'contentTemplate' => 'MauticFormBundle:Result:list.html.php',
                 'passthroughVars' => [
