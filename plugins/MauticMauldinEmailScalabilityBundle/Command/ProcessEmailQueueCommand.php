@@ -8,17 +8,17 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Command;
 
-use Mautic\CoreBundle\Command\ModeratedCommand;
 use Mautic\EmailBundle\EmailEvents;
 use Mautic\EmailBundle\Event\QueueEmailEvent;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueProcessingCommand;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\Swiftmailer\Transport\RabbitmqTransport;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * CLI command to process the e-mail queue.
  */
-class ProcessEmailQueueCommand extends ModeratedCommand
+class ProcessEmailQueueCommand extends QueueProcessingCommand
 {
     /**
      * {@inheritdoc}
@@ -28,7 +28,6 @@ class ProcessEmailQueueCommand extends ModeratedCommand
         $this
             ->setName('mauldin:emails:send')
             ->setDescription('Processes mail queue')
-            ->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', 10)
             ->setHelp(<<<'EOT'
 The <info>%command.name%</info> command is used to process the application's e-mail queue
 
@@ -42,12 +41,14 @@ EOT
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function setup(InputInterface $input, OutputInterface $output)
     {
         $container  = $this->getContainer();
         $dispatcher = $container->get('event_dispatcher');
-        $transport  = $container->get('mautic.transport.rabbitmq');
-        $queue      = $transport->getTransportQueue();
+        /** @var RabbitmqTransport $transport */
+        $transport     = $container->get('mautic.transport.rabbitmq');
+        $queue         = $transport->getTransportQueue();
+        $this->channel = $queue->getChannel();
 
         if (!$transport->isStarted()) {
             $transport->start();
@@ -67,24 +68,6 @@ EOT
         };
 
         $queue->consume($callback);
-
-        // Give up after '--max-retries' (default: 10)
-        $maxRetries     = $input->getOption('max-retries');
-        $timeoutPeriod  = 0.2;
-        $timeoutCounter = 0;
-
-        while ($queue->hasChannelCallbacks() && ($timeoutCounter < $maxRetries)) {
-            try {
-                $queue->wait($timeoutPeriod);
-                $timeoutCounter = 0;
-            } catch (\PhpAmqpLib\Exception\AMQPTimeoutException $e) {
-                $timeoutCounter += 1;
-                $output->writeln(
-                    sprintf('Email wait timeout counter %d/%d.', $timeoutCounter, $maxRetries),
-                    OutputInterface::VERBOSITY_DEBUG
-                );
-            }
-        }
 
         return 0;
     }

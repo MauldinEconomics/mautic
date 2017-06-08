@@ -26,4 +26,11 @@ interface TransportQueueInterface
      * @param \Callable $callback
      */
     public function consume($callback);
+
+    /**
+     * Return the channel used.
+     *
+     *  @return \PhpAmqpLib\Channel\AMQPChannel
+     */
+    public function getChannel();
 }

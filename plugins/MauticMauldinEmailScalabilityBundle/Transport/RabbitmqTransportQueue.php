@@ -81,4 +81,14 @@ class RabbitmqTransportQueue implements TransportQueueInterface
     {
         return $this->queue->wait($timeout, $allowedMethods, $nonBlocking);
     }
+
+    /**
+     * Return the channel used.
+     *
+     * @return \PhpAmqpLib\Channel\AMQPChannel
+     */
+    public function getChannel()
+    {
+        return $this->queue->getChannel();
+    }
 }
