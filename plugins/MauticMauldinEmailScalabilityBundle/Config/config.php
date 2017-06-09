@@ -12,14 +12,6 @@ return [
     'version'     => '1.0',
     'author'      => 'Brick Abode',
 
-    'parameters' => [
-        'rabbitmq_host'          => 'rabbitmq',
-        'rabbitmq_port'          => '5672',
-        'rabbitmq_username'      => 'guest',
-        'rabbitmq_password'      => 'guest',
-        'rabbitmq_default_queue' => 'email',
-    ],
-
     'services' => [
         'models' => [
             'mautic.mauldin.model.event' => [
@@ -57,10 +49,10 @@ return [
 
         'other' => [
             'mauldin.transport_queue.rabbitmq' => [
+                'lazy'      => true,
                 'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\RabbitmqTransportQueue',
                 'arguments' => [
-                    '@mauldin.scalability.message_queue.channel_helper',
-                    '%mautic.rabbitmq_default_queue%',
+                    'mauldin.scalability.message_queue.channel_helper',
                 ],
             ],
             'mautic.transport.rabbitmq' => [
@@ -69,7 +61,7 @@ return [
                 'methodCalls'  => [
                     'setUsername'       => ['%mautic.mailer_user%'],
                     'setPassword'       => ['%mautic.mailer_password%'],
-                    'setTransportQueue' => ['@mauldin.transport_queue.rabbitmq'],
+                    'setTransportQueue' => ['mauldin.transport_queue.rabbitmq'],
                 ],
                 'arguments' => [
                     '%mautic.mailer_host%',
@@ -78,6 +70,7 @@ return [
                 ],
             ],
             'mautic.mauldin.rabbitmq_connection' => [
+                'lazy'      => true,
                 'class'     => 'PhpAmqpLib\Connection\AMQPStreamConnection',
                 'arguments' => [
                     '%mautic.rabbitmq_host%',
@@ -87,9 +80,10 @@ return [
                 ],
             ],
             'mauldin.scalability.message_queue.channel_helper' => [
+                'lazy'      => true,
                 'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper',
                 'arguments' => [
-                    '@mautic.mauldin.rabbitmq_connection',
+                    'mautic.mauldin.rabbitmq_connection',
                 ],
             ],
         ],

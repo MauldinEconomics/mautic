@@ -32,18 +32,7 @@ return [
                 'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSIModel',
                 'arguments' => [
                     'mautic.lead.model.list',
-                    '@mauldin.scalability.message_queue.channel_helper',
-                ],
-            ],
-        ],
-        'other' => [
-            'mautic.mauldin.csi.rabbitmq_connection' => [
-                'class'     => 'PhpAmqpLib\Connection\AMQPStreamConnection',
-                'arguments' => [
-                    '%mautic.rabbitmq_host%',
-                    '%mautic.rabbitmq_port%',
-                    '%mautic.rabbitmq_username%',
-                    '%mautic.rabbitmq_password%',
+                    'mauldin.scalability.message_queue.channel_helper',
                 ],
             ],
         ],
