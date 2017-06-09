@@ -19,7 +19,10 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 abstract class QueueProcessingCommand extends ModeratedCommand
 {
-    const DEFAULT_MAX_TIMEOUT = 10;
+    const MAX_RETRIES     = 10;
+    const DEFAULT_TIMEOUT = 0.2;
+    const INITIAL_TIMEOUT = 30;
+
     /**
      * {@inheritdoc}
      */
@@ -27,8 +30,10 @@ abstract class QueueProcessingCommand extends ModeratedCommand
 
     protected function configure()
     {
-        $this->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', self::DEFAULT_MAX_TIMEOUT)
-            ->addOption('--max-items', '-m', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', PHP_INT_MAX);
+        $this->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', self::MAX_RETRIES)
+            ->addOption('--max-items', '-m', InputOption::VALUE_REQUIRED, 'Maximum amount of messages processed.', PHP_INT_MAX)
+            ->addOption('--default-timeout', '-dt', InputOption::VALUE_REQUIRED, 'Time to wait for an item.', self::DEFAULT_TIMEOUT)
+            ->addOption('--initial-timeout', '-it', InputOption::VALUE_REQUIRED, 'Time to wait for the first item.', self::INITIAL_TIMEOUT);
 
         parent::configure();
     }
@@ -39,29 +44,41 @@ abstract class QueueProcessingCommand extends ModeratedCommand
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         if (!$this->setup($input, $output)) {
-            $maxRetries = $input->getOption('max-retries');
-            $maxItems   = $input->getOption('max-items');
+            $maxRetries     = $input->getOption('max-retries');
+            $maxItems       = $input->getOption('max-items');
+            $defaultTimeout = $input->getOption('default-timeout');
+            $initialTimeout = $input->getOption('initial-timeout');
 
-            $output->writeln('Batches consumed: '.$this->wait($maxItems, $maxRetries));
+            $output->writeln('Batches consumed: '.$this->wait($maxRetries, $maxItems, $defaultTimeout, $initialTimeout));
         }
     }
 
     abstract protected function setup(InputInterface $input, OutputInterface $output);
 
-    private function wait($message_limit = PHP_INT_MAX, $max_timeout = self::DEFAULT_MAX_TIMEOUT, $timeout_period = 0.2)
+    private function wait(
+        $maxRetries     = self::MAX_RETRIES,
+        $maxItems       = PHP_INT_MAX,
+        $defaultTimeout = self::DEFAULT_TIMEOUT,
+        $initialTimeout = self::INITIAL_TIMEOUT)
     {
-        // Timeout in 10 seconds  and give up on $max_timeout
+        // Timeout in 10 seconds  and give up on $maxRetries
         $timeout_counter = 0;
         // Count messages
         $messages_sent = 0;
 
+        try {
+            $this->channel->wait($initialTimeout);
+            ++$messages_sent;
+        } catch (AMQPTimeoutException $e) {
+            return 0;
+        }
         while (
             count($this->channel->hasCallbacks()) >= 1
-            && ($timeout_counter < $max_timeout)
-            && ($messages_sent < $message_limit)
+            && ($timeout_counter < $maxRetries)
+            && ($messages_sent < $maxItems)
         ) {
             try {
-                $this->channel->wait($timeout_period);
+                $this->channel->wait($defaultTimeout);
                 ++$messages_sent;
                 $timeout_counter = 0;
             } catch (AMQPTimeoutException $e) {

@@ -41,7 +41,7 @@ class EventModelExtended extends EventModel
     /** @var QueueChannel */
     protected $channel;
 
-    /** @var EmailModel */
+    /** @var QueuedEmailModel */
     protected $emailModel;
 
     private $inSample = null;
@@ -333,6 +333,7 @@ class EventModelExtended extends EventModel
                 }
                 if ($fail) {
                     $this->notifyABTestError($campaign, $event, $email, $fail);
+
                     return 0;
                 }
             }
@@ -466,6 +467,7 @@ class EventModelExtended extends EventModel
                     /** @var \Mautic\LeadBundle\Entity\Lead $lead */
                     $leadDebugCounter = 1;
                     $this->em->getConnection()->beginTransaction();
+                    $this->emailModel->begin();
 
                     foreach ($events as $event) {
                         if ($event['triggerMode'] == 'abtest') {
@@ -578,25 +580,26 @@ class EventModelExtended extends EventModel
                         ++$leadDebugCounter;
                     }
                 }
+                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
 
                 $this->em->flush();
                 $this->em->getConnection()->commit();
-                $this->em->clear('Mautic\LeadBundle\Entity\Lead');
-                $this->em->clear('Mautic\UserBundle\Entity\User');
-
-                unset($leads, $campaignLeads);
+                $this->emailModel->commit();
 
                 // Free some memory
-                gc_collect_cycles();
-
-                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
 
                 ++$batchDebugCounter;
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (\Exception $e) {
+                $this->emailModel->rollback();
+
                 $output->writeln('Exception while consuming message starting events');
                 $output->writeln($e->getMessage());
             }
+            unset($leads, $campaignLeads);
+            gc_collect_cycles();
+            $this->em->clear('Mautic\LeadBundle\Entity\Lead');
+            $this->em->clear('Mautic\UserBundle\Entity\User');
         };
 
         $queue->consume($callback);
@@ -777,6 +780,7 @@ class EventModelExtended extends EventModel
                     }
                     if ($fail) {
                         $this->notifyABTestError($campaign, $event, $email, $fail);
+
                         return 0;
                     }
                 }
@@ -895,6 +899,7 @@ class EventModelExtended extends EventModel
                 );
 
                 $this->em->getConnection()->beginTransaction();
+                $this->emailModel->begin();
 
                 $this->logger->debug('CAMPAIGN: Processing the following contacts '.implode(', ', array_keys($events)));
                 $leadDebugCounter = 1;
@@ -947,25 +952,28 @@ class EventModelExtended extends EventModel
 
                     ++$leadDebugCounter;
                 }
+                ++$batchDebugCounter;
+
+                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
 
                 // Free RAM
                 $this->em->flush();
                 $this->em->getConnection()->commit();
-                $this->em->clear('Mautic\LeadBundle\Entity\Lead');
-                $this->em->clear('Mautic\UserBundle\Entity\User');
-                unset($events, $leads);
+                $this->emailModel->commit();
 
-                // Free some memory
-                gc_collect_cycles();
-
-                ++$batchDebugCounter;
-
-                $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (Exception $e) {
+                $this->emailModel->rollback();
+
                 $output->writeln('Exception while consuming message scheduled events');
                 $output->writeln($e);
             }
+            $this->em->clear('Mautic\LeadBundle\Entity\Lead');
+            $this->em->clear('Mautic\UserBundle\Entity\User');
+            unset($events, $leads);
+
+            // Free some memory
+            gc_collect_cycles();
         };
 
         $queue->consume($callback);
@@ -1291,6 +1299,7 @@ class EventModelExtended extends EventModel
                 ++$batchDebugCounter;
                 $applicableLeadsList = unserialize($msg->body);
                 $this->em->getConnection()->beginTransaction();
+                $this->emailModel->begin();
                 foreach ($applicableLeadsList as $parentId => $applicableLeads) {
                     $events = $eventsSplit['nonAction'][$parentId];
                     $this->logger->debug('CAMPAIGN: These contacts have not gone down the positive path: '.implode(', ', $applicableLeads));
@@ -1386,24 +1395,29 @@ class EventModelExtended extends EventModel
                         unset($lead);
                     }
                 }
-                // Save RAM
+
                 $this->em->flush();
                 $this->em->getConnection()->commit();
-                $this->em->clear('Mautic\LeadBundle\Entity\Lead');
-                $this->em->clear('Mautic\UserBundle\Entity\User');
-
-                unset($leads);
-
-                // Free some memory
-                gc_collect_cycles();
+                $this->emailModel->commit();
 
                 ++$batchDebugCounter;
                 $this->triggerConditions($campaign, $evaluatedEventCount, $executedEventCount, $totalEventCount);
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (Exception $e) {
+                $this->emailModel->rollback();
                 $output->writeln('Exception while consuming message of negative events');
                 $output->writeln($e);
             }
+
+            // Save RAM
+            // Free some memory
+
+            $this->em->clear('Mautic\LeadBundle\Entity\Lead');
+            $this->em->clear('Mautic\UserBundle\Entity\User');
+
+            unset($leads);
+
+            gc_collect_cycles();
         };
         $queue->consume($callback);
 
