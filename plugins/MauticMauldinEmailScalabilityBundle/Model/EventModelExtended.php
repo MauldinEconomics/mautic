@@ -123,13 +123,24 @@ class EventModelExtended extends EventModel
      *
      * @return QueueReference
      */
-    protected function declareCampaignQueue($prefix, $campaignId)
+    protected function declareCampaignQueue($prefix, $campaignId, $create)
     {
         // Declare the channel's queue with $durable = true
+        // Check consistency with the desired behavior
+        $exist = $this->getChannelHelper()->checkQueueExist(
+            $prefix.'-'.$campaignId,
+            true,
+            false,
+            true);
+        if (!($exist xor $create)) {
+            return null;
+        }
 
         return $this->getChannelHelper()->declareQueue(
             $prefix.'-'.$campaignId,
             $this->getChannel(),
+            true,
+            false,
             true
         );
     }
@@ -233,7 +244,10 @@ class EventModelExtended extends EventModel
 
         $repo         = $this->getRepository();
         $campaignRepo = $this->getCampaignRepository();
-        $queue        = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId);
+        $queue        = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId, true);
+        if ($queue === null) {
+            return 0;
+        }
 
         $events         = $repo->getRootLevelEvents($campaignId);
         $rootEventCount = count($events);
@@ -381,7 +395,10 @@ class EventModelExtended extends EventModel
         $logRepo      = $this->getLeadEventLogRepository();
 
         // Create a channel and a queue for receiving  the events
-        $queue = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId);
+        $queue = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId, false);
+        if ($queue === null) {
+            return 0;
+        }
 
         if ($this->dispatcher->hasListeners(CampaignEvents::ON_EVENT_DECISION_TRIGGER)) {
             // Include decisions if there are listeners
@@ -700,8 +717,10 @@ class EventModelExtended extends EventModel
         }
 
         // Create a channel and a queue for receiving  the events
-
-        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId);
+        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId, true);
+        if ($queue === null) {
+            return 0;
+        }
 
         $evaluatedEventCount = $executedEventCount = $scheduledEvaluatedCount = $scheduledExecutedCount = 0;
         $maxCount            = ($max) ? $max : $totalScheduledCount;
@@ -829,8 +848,10 @@ class EventModelExtended extends EventModel
         $eventSettings = $this->campaignModel->getEvents();
 
         // Create a channel and a queue for receiving  the events
-
-        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId);
+        $queue = $this->declareCampaignQueue(self::SCHEDULED_QUEUE_PREFIX, $campaignId, false);
+        if ($queue === null) {
+            return 0;
+        }
 
         $evaluatedEventCount = $executedEventCount = $scheduledEvaluatedCount = $scheduledExecutedCount = 0;
 
@@ -1021,7 +1042,6 @@ class EventModelExtended extends EventModel
         // Event settings
         $eventSettings = $this->campaignModel->getEvents();
 
-        $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId);
         // Get an array of events that are non-action based
 
         $eventsSplit = self::splitActionEvents($campaignEvents);
@@ -1054,6 +1074,11 @@ class EventModelExtended extends EventModel
         gc_enable();
 
         if ($leadCount) {
+            $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId, true);
+            if ($queue == null) {
+                return 0;
+            }
+
             if ($output) {
                 $progress = ProgressBarHelper::init($output, $maxCount);
                 $progress->start();
@@ -1242,8 +1267,10 @@ class EventModelExtended extends EventModel
         $eventSettings = $this->campaignModel->getEvents();
 
         // Create a channel and a queue for receiving  the events
-
-        $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId);
+        $queue = $this->declareCampaignQueue(self::NEGATIVE_QUEUE_PREFIX, $campaignId, false);
+        if ($queue === null) {
+            return 0;
+        }
 
         // Try to save some memory
         gc_enable();

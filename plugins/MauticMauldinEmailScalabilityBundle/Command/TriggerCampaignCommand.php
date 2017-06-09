@@ -33,7 +33,7 @@ class TriggerCampaignCommand extends ModeratedCommand
     protected function configure()
     {
         $this
-            ->setName('mauldin:campaigns:trigger')
+            ->setName('mauldin:campaigns:trigger:generate')
             ->setDescription('Trigger timed events for published campaigns.')
             ->addOption(
                 '--campaign-id',

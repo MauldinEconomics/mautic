@@ -600,6 +600,27 @@ class QueuedEmailModel extends EmailModel
             );
         }
     }
+
+    protected function declareQueue($create)
+    {
+        // Declare the channel's queue with $durable = true
+        $exist = $this->getChannelHelper()->checkQueueExist(self::BROADCAST_EMAIL_QUEUE, true,
+            false,
+            true);
+
+        // Check consistency with the desired behavior
+        if (!($exist xor $create)) {
+            return null;
+        }
+
+        return $this->getChannelHelper()->declareQueue(
+            self::BROADCAST_EMAIL_QUEUE,
+            $this->getChannelHelper()->getChannel(),
+            true,
+            false,
+            true
+        );
+    }
     /**
      * Send an email to lead lists.
      *
@@ -623,8 +644,17 @@ class QueuedEmailModel extends EmailModel
             return [0, 0, []];
         }
 
-        /** @var QueueReference $queue */
-        $queue = $this->channelHelper->declareQueue(self::BROADCAST_EMAIL_QUEUE);
+        /* @var QueueReference $queue */
+        if ($limit && $batch) {
+            $queue = $this->declareQueue(true);
+            if ($queue === null) {
+                if ($output) {
+                    $output->writeln("Can't create queue for broadcast");
+                }
+
+                return [0, 0, []];
+            }
+        }
 
         $options = [
             'source'        => ['email', $email->getId()],
@@ -809,7 +839,10 @@ class QueuedEmailModel extends EmailModel
     public function sendEmailToListsConsume()
     {
         /** @var QueueReference $queue */
-        $queue = $this->channelHelper->declareQueue(self::BROADCAST_EMAIL_QUEUE);
+        $queue = $this->declareQueue(false);
+        if ($queue === null) {
+            return null;
+        }
 
         $callback = function ($msg) {
             $input = unserialize($msg->body);
@@ -849,7 +882,7 @@ class QueuedEmailModel extends EmailModel
     }
 
     /**
-     * @return mixed
+     * @return ChannelHelper
      */
     public function getChannelHelper()
     {
