@@ -30,8 +30,5 @@ class QueuedTransportPass implements CompilerPassInterface
         $emailModel->setClass(QueuedEmailModel::class);
         $emailModel->addMethodCall('setChannelHelper', [new Reference('mauldin.scalability.message_queue.channel_helper')]);
         $emailModel->addMethodCall('setNotificationModel', [new Reference('mautic.core.model.notification')]);
-
-        $mailHelper = $container->getDefinition('mautic.helper.mailer');
-        $mailHelper->setClass(QueuedMailHelper::class);
     }
 }
