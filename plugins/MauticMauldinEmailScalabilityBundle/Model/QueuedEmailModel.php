@@ -10,10 +10,15 @@
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Model;
 
 use Mautic\ChannelBundle\Entity\MessageQueue;
+use Mautic\EmailBundle\Entity\Email;
 use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\EmailBundle\Swiftmailer\Exception\BatchQueueMaxException;
 use Mautic\LeadBundle\Entity\DoNotContact;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportInterface;
+use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Queued Email Model
@@ -21,6 +26,11 @@ use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportIn
  */
 class QueuedEmailModel extends EmailModel
 {
+    const BROADCAST_EMAIL_QUEUE = 'broadcast-email';
+
+    protected $channelHelper;
+    protected $notificationModel;
+
     /**
      * Send an email to lead(s).
      *
@@ -388,5 +398,485 @@ class QueuedEmailModel extends EmailModel
                 $sendTo[$key]['companies'] = $contactCompanies;
             }
         }
+    }
+
+    /**
+     * @param int  $emailId
+     * @param null $variantIds
+     * @param null $listIds
+     * @param bool $countOnly
+     * @param null $limit
+     * @param null $lastLead
+     * @param bool $statsOnly
+     *
+     * @return array|int
+     */
+    public function getEmailPendingLeads($emailId, $variantIds = null, $listIds = null, $countOnly = false, $limit = null, $lastLead = null, $statsOnly = false)
+    {
+        // Do not include leads in the do not contact table
+        $dncQb = $this->em->getConnection()->createQueryBuilder();
+        $dncQb->select('null')
+            ->from(MAUTIC_TABLE_PREFIX.'lead_donotcontact', 'dnc')
+            ->where(
+                $dncQb->expr()->andX(
+                    $dncQb->expr()->eq('dnc.lead_id', 'l.id'),
+                    $dncQb->expr()->eq('dnc.channel', $dncQb->expr()->literal('email'))
+                )
+            );
+
+        // Do not include contacts where the message is pending in the message queue
+        $mqQb = $this->em->getConnection()->createQueryBuilder();
+        $mqQb->select('null')
+            ->from(MAUTIC_TABLE_PREFIX.'message_queue', 'mq');
+
+        $messageExpr = $mqQb->expr()->andX(
+            $mqQb->expr()->eq('mq.lead_id', 'l.id'),
+            $mqQb->expr()->eq('mq.channel', $mqQb->expr()->literal('email')),
+            $mqQb->expr()->neq('mq.status', $mqQb->expr()->literal(MessageQueue::STATUS_SENT))
+        );
+
+        // Do not include leads that have already been emailed
+        $statQb = $this->em->getConnection()->createQueryBuilder()
+            ->select('null')
+            ->from(MAUTIC_TABLE_PREFIX.'email_stats', 'stat');
+
+        $statExpr = $statQb->expr()->andX(
+            $statQb->expr()->eq('stat.lead_id', 'l.id')
+        );
+
+        if ($variantIds) {
+            if (!in_array($emailId, $variantIds)) {
+                $variantIds[] = (int) $emailId;
+            }
+            $statExpr->add(
+                $statQb->expr()->in('stat.email_id', $variantIds)
+            );
+            $messageExpr->add(
+                $mqQb->expr()->in('mq.channel_id', $variantIds)
+            );
+        } else {
+            $statExpr->add(
+                $statQb->expr()->eq('stat.email_id', (int) $emailId)
+            );
+            $messageExpr->add(
+                $mqQb->expr()->eq('mq.channel_id', (int) $emailId)
+            );
+        }
+        $statQb->where($statExpr);
+        $mqQb->where($messageExpr);
+
+        // Only include those who belong to the associated lead lists
+        if (null === $listIds) {
+            // Get a list of lists associated with this email
+            $lists = $this->em->getConnection()->createQueryBuilder()
+                ->select('el.leadlist_id')
+                ->from(MAUTIC_TABLE_PREFIX.'email_list_xref', 'el')
+                ->where('el.email_id = '.(int) $emailId)
+                ->execute()
+                ->fetchAll();
+
+            $listIds = [];
+            foreach ($lists as $list) {
+                $listIds[] = $list['leadlist_id'];
+            }
+
+            if (empty($listIds)) {
+                // Prevent fatal error
+                return ($countOnly) ? 0 : [];
+            }
+        } elseif (!is_array($listIds)) {
+            $listIds = [$listIds];
+        }
+
+        // Main query
+        $q = $this->em->getConnection()->createQueryBuilder();
+        if ($countOnly) {
+            // distinct with an inner join seems faster
+            $q->select('count(distinct(l.id)) as count');
+            $q->innerJoin('l', MAUTIC_TABLE_PREFIX.'lead_lists_leads', 'll',
+                $q->expr()->andX(
+                    $q->expr()->in('ll.leadlist_id', $listIds),
+                    $q->expr()->eq('ll.lead_id', 'l.id'),
+                    $q->expr()->eq('ll.manually_removed', ':false')
+                )
+            );
+        } else {
+            $q->select('l.*');
+
+            // use a derived table in order to retrieve distinct leads in case they belong to multiple
+            // lead lists associated with this email
+            $listQb = $this->em->getConnection()->createQueryBuilder();
+            $listQb->select('distinct(ll.lead_id) lead_id')
+                ->from(MAUTIC_TABLE_PREFIX.'lead_lists_leads', 'll')
+                ->where(
+                    $listQb->expr()->andX(
+                        $listQb->expr()->in('ll.leadlist_id', $listIds),
+                        $listQb->expr()->eq('ll.manually_removed', ':false')
+                    )
+                );
+            $q->innerJoin('l', sprintf('(%s)', $listQb->getSQL()), 'in_list', 'l.id = in_list.lead_id');
+        }
+        $statPrefix = $statsOnly ? 'EXISTS' : 'NOT EXISTS';
+        $q->from(MAUTIC_TABLE_PREFIX.'leads', 'l')
+            ->andWhere(sprintf('NOT EXISTS (%s)', $dncQb->getSQL()))
+            ->andWhere(sprintf($statPrefix.' (%s)', $statQb->getSQL()))
+            ->andWhere(sprintf('NOT EXISTS (%s)', $mqQb->getSQL()))
+            ->setParameter('false', false, 'boolean');
+        if ($lastLead !== null) {
+            $q->andWhere($q->expr()->gt('l.id', $lastLead));
+        }
+        // Has an email
+        $q->andWhere(
+            $q->expr()->andX(
+                $q->expr()->isNotNull('l.email'),
+                $q->expr()->neq('l.email', $q->expr()->literal(''))
+            )
+        );
+
+        if (!empty($limit)) {
+            $q->setFirstResult(0)
+                ->setMaxResults($limit);
+        }
+
+        $results = $q->execute()->fetchAll();
+
+        if ($countOnly) {
+            return (isset($results[0])) ? $results[0]['count'] : 0;
+        } else {
+            $leads = [];
+            foreach ($results as $r) {
+                $leads[$r['id']] = $r;
+            }
+
+            return $leads;
+        }
+    }
+
+    public function sendEmailToLists(Email $email, $lists = null, $limit = null, $batch = false, OutputInterface $output = null, $lastLead = null)
+    {
+        return   $this->sendEmailToListsGenerate($email, $lists, $limit, $batch, $output, true, $lastLead);
+    }
+
+    /**
+     * @param Email $email
+     * @param null  $listId
+     * @param bool  $countOnly
+     * @param null  $limit
+     * @param bool  $includeVariants
+     * @param null  $lastLead
+     *
+     * @return array|int
+     */
+    public function getPendingLeads(Email $email, $listId = null, $countOnly = false, $limit = null, $includeVariants = true, $lastLead = null, $statsOnly = false)
+    {
+        $variantIds = ($includeVariants) ? $email->getRelatedEntityIds() : null;
+        $total      = $this->getEmailPendingLeads($email->getId(), $variantIds, $listId, $countOnly, $limit, $lastLead, $statsOnly);
+
+        return $total;
+    }
+
+    public function notifyABTestError($lists, $email, $fail)
+    {
+        $listNames = [];
+        foreach ($lists as $list) {
+            $listNames[] = $list->getName();
+        }
+        $owner = $this->userModel->getEntity($email->getCreatedBy());
+        if ($owner != null) {
+            $this->notificationModel->addNotification(
+                implode(',', $listNames),
+                'error',
+                false,
+                $this->translator->trans(
+                    'mautic.email.abtest.failed',
+                    [
+                        '%message%' => $fail,
+                        '%email%'   => $email->getName(),
+                    ]
+                ),
+                null,
+                null,
+                $owner
+            );
+        }
+    }
+    /**
+     * Send an email to lead lists.
+     *
+     * @param Email           $email
+     * @param array           $lists
+     * @param int             $limit
+     * @param bool            $batch  True to process and batch all pending leads
+     * @param OutputInterface $output
+     *
+     * @return array array(int $sentCount, int $failedCount, array $failedRecipientsByList)
+     */
+    public function sendEmailToListsGenerate(Email $email, $lists = null, $limit = null, $batch = false, OutputInterface $output = null, $noQueue = false, $lastLead = null)
+    {
+        //get the leads
+        if (empty($lists)) {
+            $lists = $email->getLists();
+        }
+
+        // Safety check
+        if ('list' !== $email->getEmailType()) {
+            return [0, 0, []];
+        }
+
+        /** @var QueueReference $queue */
+        $queue = $this->channelHelper->declareQueue(self::BROADCAST_EMAIL_QUEUE);
+
+        $options = [
+            'source'        => ['email', $email->getId()],
+            'allowResends'  => false,
+            'customHeaders' => [
+                'Precedence' => 'Bulk',
+            ],
+        ];
+
+        $isAbTest     = !empty($email->getVariantChildren());
+        $notRolledOut = $email->getAutoRolloutDate() !== null ?
+            $email->getAutoRolloutDate() > new \DateTime() : true;
+        $hasSamples = $email->getSampleSize() !== null && $email->getSampleSize() > 0;
+
+        $isSampling  = $isAbTest && $hasSamples && $notRolledOut;
+        $isRollOut   = $isAbTest && !$notRolledOut;
+        $failed      = [];
+        $sentCount   = 0;
+        $failedCount = 0;
+        $progress    = false;
+
+        $totalLeadCount = $this->getPendingLeads($email, null, true, null, true, null, false);
+
+        if ($isSampling) {
+            $sendAlreadyCount = $this->getPendingLeads($email, null, true, null, true, null, true);
+            $totalLeadCount   = floor($email->getSampleSize() * ($sendAlreadyCount + $totalLeadCount) / 100) - $sendAlreadyCount;
+        } elseif ($isRollOut) {
+            $sendAlreadyCount = $this->getPendingLeads($email, null, true, null, true, null, true);
+            $totalLeadCount   = $totalLeadCount - $sendAlreadyCount;
+        }
+        if ($batch && $output) {
+            $progressCounter = 0;
+
+            if ($totalLeadCount <= 0) {
+                return;
+            }
+
+            // Broadcast send through CLI
+            $output->writeln("\n<info>".$email->getName().'</info>');
+            $progress = new ProgressBar($output, $totalLeadCount);
+        }
+
+        if ($isRollOut) {
+            list($parent, $child) = $email->getVariants();
+            $published            = array_filter($child, function ($v) {
+                return $v->isPublished();
+            });
+            // Don't pick the winner again if
+            if (!empty($published)) {
+                $winners = $this->getWinnerVariant($email)['winners'];
+                $fail    = null;
+                if (!empty($winners)) {
+                    $winnerEmail = $this->getEntity($winners[0]);
+                    $this->convertVariant($winnerEmail);
+                    if ($email !== $winners[0]) {
+                        $email = $winnerEmail;
+                    }
+                } else {
+                    $fail = 'no data available for picking the winner';
+                }
+            }
+            if ($fail) {
+                $this->notifyABTestError($lists, $email, $fail);
+                return [0, 100, [], $lastLead];
+            }
+        }
+
+        foreach ($lists as $list) {
+            if (!$batch && $limit !== null && $limit <= 0) {
+                // Hit the max for this batch
+                break;
+            }
+
+            if ($isSampling) {
+                $sampleSize = $email->getSampleSize();
+
+                $totalLeadListCount = $this->getPendingLeads($email, $list->getId(), true, null, true, $lastLead, false);
+                $sendAlreadyCount   = $this->getPendingLeads($email, $list->getId(), true, null, true, $lastLead, true);
+
+                $sampleLeadSize = round($sampleSize * ($totalLeadListCount + $sendAlreadyCount) / 100);
+                $pendingSend    = $sampleLeadSize - $sendAlreadyCount;
+
+                $sampleRatio = $pendingSend / $totalLeadListCount;
+
+                $sampleOutput = var_export(
+                    ['list'                  => $list->getName(),
+                        'email'              => $email->getName(),
+                        'sampleRatio'        => $sampleRatio,
+                        'sendAlreadyCount'   => $sendAlreadyCount,
+                        'totalLeadListCount' => $totalLeadListCount,
+                        'pendingSend'        => $pendingSend,
+
+                    ], true);
+                if ($output) {
+                    $output->writeln("\n<info>".$sampleOutput.'</info>');
+                }
+            }
+
+            $options['listId'] = $list->getId();
+            $leads             = $this->getPendingLeads($email, $list->getId(), false, $limit, true, $lastLead);
+            $leadCount         = count($leads);
+
+            while ($leadCount) {
+                $sentCount += $leadCount;
+
+                if (!$batch && $limit != null) {
+                    // Only retrieve the difference between what has already been sent and the limit
+                    $limit -= $leadCount;
+                }
+                if ($isSampling) {
+                    $sampleSize = ceil($sampleRatio * $leadCount);
+                    if ($sampleSize > 0) {
+                        // keep the pending size update
+                        $pendingSend -= $sampleSize;
+                        // Correct for possible rounding errors
+                        if ($pendingSend < 0) {
+                            $sampleSize += $pendingSend;
+                        }
+                        $randomSample = array_rand($leads, $sampleSize);
+                        if (!is_array($randomSample)) {
+                            $randomSample = [$randomSample];
+                        }
+                        $sampleLeads = array_intersect_key(
+                            $leads,
+                            array_flip($randomSample));
+                    } else {
+                        $sampleLeads = [];
+                    }
+                } else {
+                    $sampleLeads = $leads;
+                }
+
+                if (!empty($sampleLeads)) {
+                    if ($noQueue) {
+                        $listErrors = $this->sendEmail($email, $sampleLeads, $options);
+                        if (!empty($listErrors)) {
+                            $listFailedCount = count($listErrors);
+
+                            $sentCount -= $listFailedCount;
+                            $failedCount += $listFailedCount;
+
+                            $failed[$options['listId']] = $listErrors;
+                        }
+                    } else {
+                        $queue->publish(
+                            serialize(
+                                ['email' => $email->getId(),
+                                 'leads' => $sampleLeads,
+                                 'list'  => $list->getId(),
+                                ]));
+                    }
+                }
+                $lastLead = end($leads)['id'];
+                if ($batch) {
+                    if ($progress) {
+                        $progressCounter += count($sampleLeads);
+                        $progress->setProgress($progressCounter);
+                    }
+
+                    // Get the next batch of leads
+
+                    $leads     = $this->getPendingLeads($email, $list->getId(), false, $limit, true, $lastLead);
+                    $leadCount = count($leads);
+                } else {
+                    $leadCount = 0;
+                }
+            }
+        }
+
+        if ($progress) {
+            $progress->finish();
+        }
+
+        return [$sentCount, $failedCount, $failed, $lastLead];
+    }
+
+    /**
+     * Generate a the rabbitMQ consumer for processing each batch.
+     *
+     * @return QueueReference
+     */
+    public function sendEmailToListsConsume()
+    {
+        /** @var QueueReference $queue */
+        $queue = $this->channelHelper->declareQueue(self::BROADCAST_EMAIL_QUEUE);
+
+        $callback = function ($msg) {
+            $input = unserialize($msg->body);
+            try {
+                $this->em->getConnection()->beginTransaction();
+
+                /** @var Email $email */
+                $email   = $this->getEntity($input['email']);
+                $options = [
+                    'source'        => ['email', $email->getId()],
+                    'allowResends'  => false,
+                    'customHeaders' => [
+                        'Precedence' => 'Bulk',
+                    ],
+                ];
+                $options['listId'] = $input['list'];
+                $listErrors        = $this->sendEmail($email, $input['leads'], $options);
+                $this->em->flush();
+                $this->em->getConnection()->commit();
+                $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+            } catch (\Exception $e) {
+                // log in case of failure
+                $log = [
+                      'error' => $e->getMessage(),
+                      'input' => $input,
+                     ];
+                $file = fopen('app/logs/broadcast-email-consumer.log', 'a');
+                fwrite($file, json_encode($log)."\n");
+                fclose($file);
+                // And acknowledge the message
+                $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+            }
+        };
+        $queue->consume($callback);
+
+        return $queue;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getChannelHelper()
+    {
+        return $this->channelHelper;
+    }
+
+    /**
+     * @param mixed $channelHelper
+     */
+    public function setChannelHelper(ChannelHelper $channelHelper)
+    {
+        $this->channelHelper = $channelHelper;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getNotificationModel()
+    {
+        return $this->notificationModel;
+    }
+
+    /**
+     * @param mixed $notificationModel
+     */
+    public function setNotificationModel($notificationModel)
+    {
+        $this->notificationModel = $notificationModel;
     }
 }

@@ -34,7 +34,7 @@ return [
                     'mautic.factory',
                 ],
                 'methodCalls' => [
-                    'setChannelHelper' => ['@mauldin.scalability.message_queue.channel_helper'],
+                    'setChannelHelper' => ['mauldin.scalability.message_queue.channel_helper'],
                     'setEmailModel'    => ['mautic.email.model.email'],
                 ],
             ],
