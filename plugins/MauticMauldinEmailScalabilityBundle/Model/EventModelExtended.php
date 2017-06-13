@@ -13,9 +13,11 @@ use DateTime;
 use Doctrine\DBAL\Types\Type;
 use Mautic\CampaignBundle\CampaignEvents;
 use Mautic\CampaignBundle\Entity\Campaign;
+use Mautic\CampaignBundle\Entity\Event;
 use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Helper\ProgressBarHelper;
+use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -39,6 +41,11 @@ class EventModelExtended extends EventModel
     /** @var QueueChannel */
     protected $channel;
 
+    /** @var EmailModel */
+    protected $emailModel;
+
+    private $inSample = null;
+
     /**
      * Set channel helper.
      *
@@ -47,6 +54,16 @@ class EventModelExtended extends EventModel
     public function setChannelHelper(ChannelHelper $helper)
     {
         $this->channelHelper = $helper;
+    }
+
+    /**
+     * Set channel helper.
+     *
+     * @param ChannelHelper $helper
+     */
+    public function setEmailModel(QueuedEmailModel $model)
+    {
+        $this->emailModel = $model;
     }
 
     /**
@@ -159,6 +176,34 @@ class EventModelExtended extends EventModel
     }
 
     /**
+     * @param $campaign
+     * @param $event
+     * @param $email
+     * @param $fail
+     */
+    public function notifyABTestError($campaign, $event, $email, $fail)
+    {
+        $owner = $this->userModel->getEntity($campaign->getCreatedBy());
+        if ($owner != null) {
+            $this->notificationModel->addNotification(
+                    $campaign->getName().' / '.$event['name'],
+                    'error',
+                    false,
+                    $this->translator->trans(
+                        'mautic.campaign.abtest.failed',
+                        [
+                            '%message%' => $fail,
+                            '%email%'   => $email->getName(),
+                        ]
+                    ),
+                    null,
+                    null,
+                    $owner
+                );
+        }
+    }
+
+    /**
      * Trigger and queue the root level action(s) in campaign(s).
      *
      * @param Campaign        $campaign
@@ -252,6 +297,32 @@ class EventModelExtended extends EventModel
         // paginate
         $lastId       = null;
         $currentCount = 0;
+
+        // If the startup time is not set make it now so we can check it latter
+        foreach ($events as $event) {
+            if ($event['triggerMode'] == 'abtest') {
+                $now         = new \DateTime();
+                $triggerDate = $event['triggerDate'];
+                $fail        = null;
+                $email       = $this->emailModel->getEntity($event['properties']['email']);
+
+                if ($triggerDate === null) {
+                    /** @var Event $ev */
+                    $ev = $this->getRepository()->getEntity($event['id']);
+                    $ev->setTriggerDate($now);
+                    $triggerDate = $now;
+                    $this->getRepository()->saveEntity($ev);
+                }
+                $rollout = $this->addInterval(clone $triggerDate, $event['triggerInterval'], $event['triggerIntervalUnit']);
+                if ($rollout < $now) {
+                    $fail = $rollout->format('Y-m-d H:i:s T').' - roll out date passed but the test has not started';
+                }
+                if ($fail) {
+                    $this->notifyABTestError($campaign, $event, $email, $fail);
+                    return 0;
+                }
+            }
+        }
 
         for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
             $this->logger->debug('CAMPAIGN: Batch #'.$batchIdx);
@@ -355,9 +426,7 @@ class EventModelExtended extends EventModel
             $logRepo
         ) {
             try {
-                // Get list of all campaign leads; start is always zero in practice because of $pendingOnly
                 $campaignLeads = explode(' ', $msg->body);
-
                 if (!empty($campaignLeads)) {
                     $leads = $this->leadModel->getEntities(
                         [
@@ -380,13 +449,26 @@ class EventModelExtended extends EventModel
                     /** @var \Mautic\LeadBundle\Entity\Lead $lead */
                     $leadDebugCounter = 1;
                     $this->em->getConnection()->beginTransaction();
-                    foreach ($leads as $lead) {
+
+                    foreach ($events as $event) {
+                        if ($event['triggerMode'] == 'abtest') {
+                            $sampleSize                  = $event['sampleSize'];
+                            $sampleIndexes[$event['id']] = array_rand($leads, floor(count($campaignLeads) * $sampleSize / 100));
+                        }
+                    }
+
+                    foreach ($leads as $idx => $lead) {
                         $this->logger->debug('CAMPAIGN: Current Lead ID# '.$lead->getId().'; #'.$leadDebugCounter.' in batch #'.$batchDebugCounter);
 
                         // Set lead in case this is triggered by the system
                         $this->leadModel->setSystemCurrentLead($lead);
 
                         foreach ($events as $event) {
+                            $this->inSample = $sampleIndexes ?
+                                (isset($sampleIndexes[$event['id']]) ?
+                                    in_array($idx, $sampleIndexes[$event['id']]) :
+                                    null) :
+                                null;
                             if ($event['eventType'] == 'decision') {
                                 ++$evaluatedEventCount;
                                 ++$totalEventCount;
@@ -557,7 +639,7 @@ class EventModelExtended extends EventModel
         $logs = [];
         foreach ($results as $e) {
             $leadId = $e['lead_id'];
-            if ($logs[$leadId] === null) {
+            if (isset($logs[$leadId])) {
                 $logs[$leadId] = [];
             }
             unset($e['lead_id']);
@@ -639,6 +721,48 @@ class EventModelExtended extends EventModel
         // paginate
         $lastLead     = null;
         $currentCount = 0;
+
+        $events = $repo->getCampaignActionAndConditionEvents($campaignId);
+
+        // Check if the abtest timeout has been reached
+        foreach ($events as $event) {
+            if ($event['triggerMode'] == 'abtest') {
+                // Check if timing has passed
+                $this->inSample = false;
+                $rolloutReady   = $this->checkEventTiming($event, null, false);
+                $this->inSample = null;
+                if ($rolloutReady === true) {
+                    //Pick the winner for the ab test
+
+                    $email = $this->emailModel->getEntity($event['properties']['email']);
+                    if (!empty($email->getVariants())) {
+                        $winners = $this->emailModel->getWinnerVariant($email)['winners'];
+                        $fail    = null;
+
+                        if (!empty($winners)) {
+                            $winnerEmail = $this->emailModel->getEntity($winners[0]);
+                            $this->emailModel->convertVariant($winnerEmail);
+
+                            if ($event['properties']['email'] !== $winners[0]) {
+                                $event['properties']['email'] = $winners[0];
+                                /** @var Event $eventEntity */
+                                $eventEntity = $repo->getEntity($event['id']);
+                                $eventEntity->setProperties($event['properties']);
+                                $repo->saveEntity($eventEntity);
+                            }
+                        } else {
+                            $fail = 'no data available for picking the winner';
+                        }
+                    } else {
+                        $fail = 'no variants were found';
+                    }
+                    if ($fail) {
+                        $this->notifyABTestError($campaign, $event, $email, $fail);
+                        return 0;
+                    }
+                }
+            }
+        }
 
         for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
             $this->logger->debug('CAMPAIGN: Batch #'.$batchIdx);
@@ -1257,5 +1381,135 @@ class EventModelExtended extends EventModel
         $queue->consume($callback);
 
         return 1;
+    }
+
+    public function addInterval($date, $interval, $preunit)
+    {
+        $unit = strtoupper($preunit);
+
+        switch ($unit) {
+            case 'Y':
+            case 'M':
+            case 'D':
+                $dt = "P{$interval}{$unit}";
+                break;
+            case 'I':
+                $dt = "PT{$interval}M";
+                break;
+            case 'H':
+            case 'S':
+                $dt = "PT{$interval}{$unit}";
+                break;
+        }
+
+        $dv = new \DateInterval($dt);
+        $date->add($dv);
+
+        return $date;
+    }
+
+    /**
+     * Check to see if the interval between events are appropriate to fire currentEvent.
+     *
+     * @param           $action
+     * @param \DateTime $parentTriggeredDate
+     * @param bool      $allowNegative
+     *
+     * @return bool|DateTime
+     */
+    public function checkEventTiming($action, \DateTime $parentTriggeredDate = null, $allowNegative = false)
+    {
+        $now = new \DateTime();
+
+        $this->logger->debug('CAMPAIGN: Check timing for '.ucfirst($action['eventType']).' ID# '.$action['id']);
+
+        if ($action instanceof Event) {
+            $action = $action->convertToArray();
+        }
+
+        if ($action['decisionPath'] == 'no' && !$allowNegative) {
+            $this->logger->debug('CAMPAIGN: '.ucfirst($action['eventType']).' is attached to a negative path which is not allowed');
+
+            return false;
+        } else {
+            $negate = ($action['decisionPath'] == 'no' && $allowNegative);
+            if ($action['triggerMode'] == 'abtest') {
+                if ($this->inSample) {
+                    $triggerMode = 'date';
+                } else {
+                    $triggerMode = 'interval';
+                }
+                $this->inSample = null;
+            } else {
+                $triggerMode = $action['triggerMode'];
+            }
+            if ($triggerMode == 'interval') {
+                if ($negate) {
+                    $triggerOn = clone $parentTriggeredDate;
+                } else {
+                    $trigger   = new DateTimeHelper(isset($action['triggerDate']) ? clone $action['triggerDate'] : null);
+                    $triggerOn = $trigger->getDateTime();
+                    unset($trigger);
+                }
+
+                if ($triggerOn == null) {
+                    $triggerOn = new \DateTime();
+                }
+
+                $this->logger->debug('CAMPAIGN: Adding interval of '.$action['triggerInterval'].$action['triggerIntervalUnit'].' to '.$triggerOn->format('Y-m-d H:i:s T'));
+                $this->addInterval($triggerOn, $action['triggerInterval'], $action['triggerIntervalUnit']);
+                if ($triggerOn >= $now) {
+                    $this->logger->debug(
+                        'CAMPAIGN: Date to execute ('.$triggerOn->format('Y-m-d H:i:s T').') is later than now ('.$now->format('Y-m-d H:i:s T')
+                        .')'.(($action['decisionPath'] == 'no') ? ' so ignore' : ' so schedule')
+                    );
+
+                    // Save some RAM for batch processing
+                    unset($now, $action, $dv, $dt);
+
+                    //the event is to be scheduled based on the time interval
+                    return $triggerOn;
+                }
+            } elseif ($triggerMode == 'date') {
+                if (!$action['triggerDate'] instanceof \DateTime) {
+                    $triggerDate           = new DateTimeHelper($action['triggerDate']);
+                    $action['triggerDate'] = $triggerDate->getDateTime();
+                    unset($triggerDate);
+                }
+
+                $this->logger->debug('CAMPAIGN: Date execution on '.$action['triggerDate']->format('Y-m-d H:i:s T'));
+
+                $pastDue = $now >= $action['triggerDate'];
+
+                if ($negate) {
+                    $this->logger->debug(
+                        'CAMPAIGN: Negative comparison; Date to execute ('.$action['triggerDate']->format('Y-m-d H:i:s T').') compared to now ('
+                        .$now->format('Y-m-d H:i:s T').') and is thus '.(($pastDue) ? 'overdue' : 'not past due')
+                    );
+
+                    //it is past the scheduled trigger date and the lead has done nothing so return true to trigger
+                    //the event otherwise false to do nothing
+                    $return = ($pastDue) ? true : $action['triggerDate'];
+
+                    // Save some RAM for batch processing
+                    unset($now, $action);
+
+                    return $return;
+                } elseif (!$pastDue) {
+                    $this->logger->debug(
+                        'CAMPAIGN: Non-negative comparison; Date to execute ('.$action['triggerDate']->format('Y-m-d H:i:s T').') compared to now ('
+                        .$now->format('Y-m-d H:i:s T').') and is thus not past due'
+                    );
+
+                    //schedule the event
+                    return $action['triggerDate'];
+                }
+            }
+        }
+
+        $this->logger->debug('CAMPAIGN: Nothing stopped execution based on timing.');
+
+        //default is to trigger the event
+        return true;
     }
 }

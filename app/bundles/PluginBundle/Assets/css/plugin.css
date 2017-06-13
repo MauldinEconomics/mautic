@@ -3,6 +3,9 @@
     content: '#';
 }
 
+.symbol-percentage:before {
+    content: '%';
+}
 .shuffle-item.integration {
 	width: 100px;
 }

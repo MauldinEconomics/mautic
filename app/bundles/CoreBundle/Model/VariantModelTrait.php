@@ -46,17 +46,15 @@ trait VariantModelTrait
                 }
 
                 $entity->addVariantChild($parent);
+                $entity->removeVariantParent();
                 $parent->setVariantParent($entity);
-            }
-
-            $parent->setVariantStartDate(null);
-            if (method_exists($parent, 'setVariantSentCount')) {
-                $parent->setVariantSentCount(0);
             }
 
             foreach ($children as $child) {
                 //capture child before it's removed from collection
-                $save[] = $child;
+                if (!($child->getId() == $entity->getId())) {
+                    $save[] = $child;
+                }
 
                 $parent->removeVariantChild($child);
             }
@@ -64,21 +62,12 @@ trait VariantModelTrait
 
         if (count($save)) {
             foreach ($save as $child) {
-                if ($child->getId() != $entity->getId()) {
-                    if (method_exists($child, 'setIsPublished')) {
-                        $child->setIsPublished(false);
-                    }
-
-                    $entity->addVariantChild($child);
-                    $child->setVariantParent($entity);
-                } else {
-                    $child->removeVariantParent();
+                if (method_exists($child, 'setIsPublished')) {
+                    $child->setIsPublished(false);
                 }
 
-                if (method_exists($child, 'setVariantSentCount')) {
-                    $child->setVariantSentCount(0);
-                }
-                $child->setVariantStartDate(null);
+                $entity->addVariantChild($child);
+                $child->setVariantParent($entity);
             }
         }
 
@@ -86,7 +75,14 @@ trait VariantModelTrait
         $save[] = $entity;
 
         //save the entities
-        $this->saveEntities($save, false);
+        foreach($save as $entity) {
+            if (method_exists($entity, 'setVariantSentCount')) {
+                $entity->setVariantSentCount(0);
+            }
+            $entity->setVariantStartDate(null);
+            $this->saveEntity($entity, false);
+        }
+
     }
 
     /**
@@ -184,5 +180,85 @@ trait VariantModelTrait
             $variantStartDate->setTimezone(new \DateTimeZone('UTC'));
             $repo->resetVariants($relatedIds, $variantStartDate->format('Y-m-d H:i:s'));
         }
+    }
+
+    /**
+     * Converts a variant to the main item and the original main item a variant.
+     *
+     * @param VariantEntityInterface $entity
+     */
+    public function getWinnerVariant($entity){
+        //get A/B test information
+        list($parent, $children) = $entity->getVariants();
+        $properties              = [];
+        $variantError            = false;
+        $weight                  = 0;
+        if (count($children)) {
+            foreach ($children as $c) {
+                $variantSettings = $c->getVariantSettings();
+
+                if (is_array($variantSettings) && isset($variantSettings['winnerCriteria'])) {
+                    if ($c->isPublished()) {
+                        if (!isset($lastCriteria)) {
+                            $lastCriteria = $variantSettings['winnerCriteria'];
+                        }
+
+                        //make sure all the variants are configured with the same criteria
+                        if ($lastCriteria != $variantSettings['winnerCriteria']) {
+                            $variantError = true;
+                        }
+
+                        $weight += $variantSettings['weight'];
+                    }
+                } else {
+                    $variantSettings['winnerCriteria'] = '';
+                    $variantSettings['weight']         = 0;
+                }
+
+                $properties[$c->getId()] = $variantSettings;
+            }
+
+            $properties[$parent->getId()]['weight']         = 100 - $weight;
+            $properties[$parent->getId()]['winnerCriteria'] = '';
+        }
+
+        $abTestResults = [];
+        $criteria      = $this->getBuilderComponents($entity, 'abTestWinnerCriteria');
+        if (!empty($lastCriteria) && empty($variantError)) {
+            if (isset($criteria['criteria'][$lastCriteria])) {
+                $testSettings = $criteria['criteria'][$lastCriteria];
+
+                $args = [
+                    'factory'    => $this->factory,
+                    'entity'     => $entity,
+                    'parent'     => $parent,
+                    'children'   => $children,
+                    'properties' => $properties,
+                ];
+
+                //execute the callback
+                if (is_callable($testSettings['callback'])) {
+                    if (is_array($testSettings['callback'])) {
+                        $reflection = new \ReflectionMethod($testSettings['callback'][0], $testSettings['callback'][1]);
+                    } elseif (strpos($testSettings['callback'], '::') !== false) {
+                        $parts      = explode('::', $testSettings['callback']);
+                        $reflection = new \ReflectionMethod($parts[0], $parts[1]);
+                    } else {
+                        $reflection = new \ReflectionMethod(null, $testSettings['callback']);
+                    }
+
+                    $pass = [];
+                    foreach ($reflection->getParameters() as $param) {
+                        if (isset($args[$param->getName()])) {
+                            $pass[] = $args[$param->getName()];
+                        } else {
+                            $pass[] = null;
+                        }
+                    }
+                    $abTestResults = $reflection->invokeArgs($this, $pass);
+                }
+            }
+        }
+        return $abTestResults;
     }
 }
