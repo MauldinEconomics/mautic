@@ -15,23 +15,32 @@ use PhpAmqpLib\Message\AMQPMessage;
 class CSIModel
 {
     private $channelHelper;
-    private $queue;
+    private $queue = null;
     private $listModel;
+
+    const CSI_LIST_QUEUE = 'csi_list';
 
     public function __construct(ListModel $listModel, ChannelHelper $channelHelper)
     {
         $this->listModel     = $listModel;
         $this->channelHelper = $channelHelper;
-        $this->queue         = $channelHelper->declareQueue('csi_list');
+    }
+
+    public function getQueue(){
+        if ($this->queue === null) {
+            $this->queue = $this->channelHelper->declareQueue(self::CSI_LIST_QUEUE);
+        }
+        return $this->queue;
     }
 
     public function addToList(Lead $lead, array $addTo)
     {
+
         foreach ($addTo as $id) {
             $message['add']['lead'] = $lead->getEmail();
             $message['add']['list'] = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
             $msg                    = new AMQPMessage(serialize($message));
-            $this->queue->publish($msg);
+            $this->getQueue()->publish($msg);
         }
     }
 
@@ -41,7 +50,7 @@ class CSIModel
             $message['remove']['lead'] = $lead->getEmail();
             $message['remove']['list'] = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
             $msg                       = new AMQPMessage(serialize($message));
-            $this->queue->publish($msg);
+            $this->getQueue()->publish($msg);
         }
     }
 }

@@ -20,7 +20,9 @@ class RabbitmqTransportQueue implements TransportQueueInterface
     private $helper;
 
     /** @var \MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference */
-    private $queue;
+    private $queue = null;
+
+    const EMAIL_QUEUE = 'email';
 
     /**
      * Constructor.
@@ -28,10 +30,18 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      * @param ChannelHelper $helper
      * @param string        $queueName
      */
-    public function __construct(ChannelHelper $helper, $queueName)
+    public function __construct(ChannelHelper $helper)
     {
         $this->helper = $helper;
-        $this->queue  = $helper->declareQueue($queueName);
+    }
+
+    public function getQueue()
+    {
+        if ($this->queue === null) {
+            $this->queue = $this->helper->declareQueue(self::EMAIL_QUEUE);
+        }
+
+        return $this->queue;
     }
 
     /**
@@ -41,7 +51,7 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      */
     public function publish($message)
     {
-        return $this->queue->publish($message);
+        return $this->getQueue()-> publish($message);
     }
 
     /**
@@ -55,7 +65,7 @@ class RabbitmqTransportQueue implements TransportQueueInterface
         // to retry forever until the message is sent, implement retry count
         // limit, TTL expiring or dead lettered messages
 
-        return $this->queue->consume($callback);
+        return $this->getQueue()->consume($callback);
     }
 
     /**
@@ -65,7 +75,7 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      */
     public function hasChannelCallbacks()
     {
-        return $this->queue->hasChannelCallbacks();
+        return $this->getQueue()->hasChannelCallbacks();
     }
 
     /**
@@ -79,7 +89,7 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      */
     public function wait($timeout = 0, $allowedMethods = null, $nonBlocking = false)
     {
-        return $this->queue->wait($timeout, $allowedMethods, $nonBlocking);
+        return $this->getQueue()->wait($timeout, $allowedMethods, $nonBlocking);
     }
 
     /**
@@ -89,6 +99,6 @@ class RabbitmqTransportQueue implements TransportQueueInterface
      */
     public function getChannel()
     {
-        return $this->queue->getChannel();
+        return $this->getQueue()->getChannel();
     }
 }
