@@ -16,7 +16,7 @@ use Mautic\EmailBundle\Swiftmailer\Exception\BatchQueueMaxException;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference;
-use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportInterface;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\MemoryTransactionInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -24,12 +24,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Queued Email Model
  * {@inheritdoc}
  */
-class QueuedEmailModel extends EmailModel
+class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
 {
     const BROADCAST_EMAIL_QUEUE = 'broadcast-email';
 
     protected $channelHelper;
     protected $notificationModel;
+    protected $counter = [];
 
     /**
      * Send an email to lead(s).
@@ -343,26 +344,20 @@ class QueuedEmailModel extends EmailModel
             }
         }
 
-        // CODE IGNORED WHEN USING THE RABBITMQ TRANSPORT
-        $transport = $mailer->getTransport();
-
-        if (!$transport instanceof QueuedTransportInterface) {
-            // Update sent counts
-            foreach ($emailSentCounts as $emailId => $count) {
-                // Retry a few times in case of deadlock errors
+        // Update sent counts
+        foreach ($emailSentCounts as $emailId => $count) {
+            // Retry a few times in case of deadlock errors
                 $strikes = 3;
-                while ($strikes >= 0) {
-                    try {
-                        $this->getRepository()->upCount($emailId, 'sent', $count, $emailSettings[$emailId]['isVariant']);
-                        break;
-                    } catch (\Exception $exception) {
-                        error_log($exception);
-                    }
-                    --$strikes;
+            while ($strikes >= 0) {
+                try {
+                    $this->upCount($emailId, 'sent', $count, $emailSettings[$emailId]['isVariant']);
+                    break;
+                } catch (\Exception $exception) {
+                    error_log($exception);
                 }
+                --$strikes;
             }
         }
-        // END CODE IGNORED
 
         // Free RAM
         $this->em->clear('Mautic\EmailBundle\Entity\Stat');
@@ -718,6 +713,7 @@ class QueuedEmailModel extends EmailModel
             }
             if ($fail) {
                 $this->notifyABTestError($lists, $email, $fail);
+
                 return [0, 100, [], $lastLead];
             }
         }
@@ -848,7 +844,7 @@ class QueuedEmailModel extends EmailModel
             $input = unserialize($msg->body);
             try {
                 $this->em->getConnection()->beginTransaction();
-
+                $this->begin();
                 /** @var Email $email */
                 $email   = $this->getEntity($input['email']);
                 $options = [
@@ -862,8 +858,10 @@ class QueuedEmailModel extends EmailModel
                 $listErrors        = $this->sendEmail($email, $input['leads'], $options);
                 $this->em->flush();
                 $this->em->getConnection()->commit();
+                $this->commit();
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (\Exception $e) {
+                $this->rollback();
                 // log in case of failure
                 $log = [
                       'error' => $e->getMessage(),
@@ -911,5 +909,81 @@ class QueuedEmailModel extends EmailModel
     public function setNotificationModel($notificationModel)
     {
         $this->notificationModel = $notificationModel;
+    }
+
+    /**
+     * Up the read/sent counts.
+     *
+     * @param            $id
+     * @param string     $type
+     * @param int        $increaseBy
+     * @param bool|false $variant
+     */
+    public function upCount($id, $type = 'sent', $increaseBy = 1, $variant = false)
+    {
+        if ($this->transaction) {
+            if ($this->counter[$id] === null) {
+                $this->counter[$id] = ['variant' => $variant];
+            } elseif ($this->counter[$id][$type] === null) {
+                $this->counter[$id][$type] = 0;
+            }
+            $this->counter[$id][$type] += $increaseBy;
+        } else {
+            $this->getRepository()->upCount($id, $type, $increaseBy, $variant);
+        }
+    }
+
+    public function begin()
+    {
+        if (!$this->transaction) {
+            $this->transaction = true;
+            if ($this->mailHelper->getTransport() instanceof MemoryTransactionInterface) {
+                $this->mailHelper->getTransport()->begin();
+            }
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public function commit()
+    {
+        if ($this->transaction) {
+            $db = $this->em->getConnection();
+            foreach ($this->counter as $id => $c) {
+                $variant = $c['variant'];
+                foreach ($c as $type => $increaseBy) {
+                    $set = [$type.'_count = '.$type.'_count + :increase'];
+
+                    if ($variant) {
+                        $set[] = 'variant_'.$type.'_count = '.'variant_'.$type.'_count + :increase';
+                    }
+                }
+
+                $db->executeUpdate('UPDATE '.MAUTIC_TABLE_PREFIX.'emails'.' SET  '.implode(',', array_reverse($set)).' where id = :id', ['increase' => $increaseBy, 'id' => $id]);
+            }
+            if ($this->mailHelper->getTransport() instanceof MemoryTransactionInterface) {
+                $this->mailHelper->getTransport()->commit();
+            }
+            $this->counter = [];
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+    public function rollback()
+    {
+        if ($this->transaction) {
+            $this->counter = [];
+            if ($this->mailHelper->getTransport() instanceof MemoryTransactionInterface) {
+                $this->mailHelper->getTransport()->rollback();
+            }
+
+            return true;
+        } else {
+            return false;
+        }
     }
 }

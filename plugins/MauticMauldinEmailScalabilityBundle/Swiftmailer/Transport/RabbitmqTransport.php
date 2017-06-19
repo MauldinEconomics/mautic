@@ -8,16 +8,20 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Swiftmailer\Transport;
 
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\MemoryTransactionInterface;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportInterface;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\TransportQueueInterface;
 
 /**
  * Class RabbitmqTransport.
  */
-class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportInterface
+class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportInterface, MemoryTransactionInterface
 {
     /** @var TransportQueueInterface */
     private $queue;
+
+    private $transaction = false;
+    private $logs        = [];
 
     /** {@inheritdoc} */
     public function setTransportQueue(TransportQueueInterface $queue)
@@ -53,10 +57,14 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
             throw new \RuntimeException('TransportQueue missing from '.self::class);
         }
 
-        try {
-            $this->queue->publish(serialize($message));
-        } catch (\Exception $e) {
-            throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
+        if (!$this->transaction) {
+            try {
+                $this->queue->publish(serialize($message));
+            } catch (\Exception $e) {
+                throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
+            }
+        } else {
+            $this->logs [] = serialize($message);
         }
 
         return 1;
@@ -73,5 +81,47 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
     public function sendDirect(\Swift_Mime_Message $message, &$failedRecipients = null)
     {
         return parent::send($message, $failedRecipients);
+    }
+
+    public function begin()
+    {
+        if (!$this->transaction) {
+            $this->transaction = true;
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public function commit()
+    {
+        if ($this->transaction) {
+            foreach ($this->logs as $message) {
+                try {
+                    $this->queue->publish($message);
+                } catch (\Exception $e) {
+                    throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
+                }
+            }
+            $this->transaction = false;
+            $this->logs        = [];
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public function rollback()
+    {
+        if ($this->transaction) {
+            $this->transaction = false;
+            $this->logs        = [];
+
+            return true;
+        } else {
+            return false;
+        }
     }
 }
