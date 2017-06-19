@@ -10,6 +10,7 @@ namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue;
 
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Exception\AMQPProtocolChannelException;
 
 /**
  * Channel Helper.
@@ -38,6 +39,17 @@ class ChannelHelper
         $this->connection = $connection;
     }
 
+    public function checkQueueExist($queueName, $durable = false, $autoDelete = null)
+    {
+        $channel = $this->connection->channel();
+        try {
+            $output = $channel->queue_declare($queueName, true, $durable, false, $autoDelete);
+        } catch (AMQPProtocolChannelException $e) {
+            return false;
+        }
+
+        return true;
+    }
     /**
      * Get the an instance of AMQPChannel wrapped in the QueueChannel decorator.
      *
@@ -65,7 +77,7 @@ class ChannelHelper
      *
      * @return QueueReference
      */
-    public function declareQueue($queue, $channel = null, $durable = false)
+    public function declareQueue($queue, $channel = null, $durable = false, $passive = null, $autoDelete = null)
     {
         if (isset($this->references[$queue])) {
             return $this->references[$queue];
@@ -75,7 +87,7 @@ class ChannelHelper
             $channel = $this->getChannel($channel);
         }
 
-        $reference = new QueueReference($channel, $queue, null, $durable);
+        $reference = new QueueReference($channel, $queue, $passive, $durable, false, $autoDelete);
 
         $this->references[$queue] = $reference;
 

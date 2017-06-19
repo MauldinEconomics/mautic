@@ -45,6 +45,9 @@ EOT
         /** @var QueuedEmailModel $emailModel */
         $emailModel    = $container->get('mautic.email.model.email');
         $queue         = $emailModel->sendEmailToListsConsume();
+        if ($queue === null) {
+            return 1;
+        }
         $this->channel = $queue->getChannel();
 
         return 0;
