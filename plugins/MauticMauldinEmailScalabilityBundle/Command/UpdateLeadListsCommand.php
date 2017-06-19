@@ -9,12 +9,48 @@
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Command;
 
 use Mautic\CoreBundle\Command\ModeratedCommand;
+use Mautic\LeadBundle\Entity\LeadList;
+use MJS\TopSort\Implementations\StringSort;
+use MJS\TopSort\CircularDependencyException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class UpdateLeadListsCommand extends ModeratedCommand
 {
+    private function notifyCircularDependency($listsIds, $lists) {
+        $container         = $this->getContainer();
+        $notificationModel = $container->get('mautic.core.model.notification');
+        $userModel         = $container->get('mautic.user.model.user');
+        $translator        = $container->get('translator');
+
+        foreach ($lists as $list) {
+            $owner = $userModel->getEntity($list->getCreatedBy());
+            if ($owner != null) {
+                $message = $translator->trans(
+                    'mauldin.segments.update.circular_dependency',
+                    [
+                        '%list_name%'       => $list->getName(),
+                        '%list_id%'         => $list->getId(),
+                        '%dependant_lists%' => $listsIds,
+                    ]
+                );
+
+                $header = $translator->trans('mauldin.segments.update.circular_dependency_header');
+
+                $notificationModel->addNotification(
+                    $message,
+                    'error',
+                    false,
+                    $header,
+                    null,
+                    null,
+                    $owner
+                );
+            }
+        }
+    }
+
     protected function configure()
     {
         $this
@@ -34,6 +70,11 @@ class UpdateLeadListsCommand extends ModeratedCommand
         parent::configure();
     }
 
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @return int
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $container  = $this->getContainer();
@@ -62,26 +103,49 @@ class UpdateLeadListsCommand extends ModeratedCommand
                 $output->writeln('<error>'.$translator->trans('mautic.lead.list.rebuild.not_found', ['%id%' => $id]).'</error>');
             }
         } else {
-            $lists = $listModel->getEntities(
-                [
-                    'iterator_mode' => true,
-                ]
-            );
+            $lists = $listModel->getEntities();
+            $deplist = new StringSort();
+            $listarray = [];
+            /** @var LeadList $list */
+            if($lists->count() !== null) {
+                foreach ($lists as $list) {
+                    $deps = [];
+                    foreach ($list->getFilters() as $filter) {
+                        if ($filter['type'] == 'leadlist') {
+                            $deps = array_merge($deps, $filter['filter']);
+                        }
+                    }
 
-            while (($l = $lists->next()) !== false) {
-                // Get first item; using reset as the key will be the ID and not 0
-                $l = reset($l);
-
-                if (substr($l->getAlias(), 0, 4) !== 'csi-') {
-                    $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $l->getId()]).'</info>');
-
-                    $processed = $listModel->rebuildListLeads($l, $batch, $max, $output);
-                    $output->writeln(
-                        '<comment>'.$translator->trans('mautic.lead.list.rebuild.leads_affected', ['%leads%' => $processed]).'</comment>'."\n"
-                    );
+                    $deplist->add($list->getId(), $deps);
+                    $listarray[$list->getId()] = $list;
                 }
 
-                unset($l);
+                try {
+                    $result = $deplist->sort();
+                } catch (CircularDependencyException $e) {
+                    $result = [];
+                    $nodesIds = $e->getNodes();
+                    $nodes = [];
+                    foreach ($nodesIds as $node) {
+                        $nodes[$node] = $listarray[$node];
+                    }
+                    $this->notifyCircularDependency(implode(', ', $nodesIds), $nodes);
+                }
+
+                foreach ($result as $dep) {
+                    // Get first item; using reset as the key will be the ID and not 0
+                    $l = $listarray[$dep];
+
+                    if ($l !== null && substr($l->getAlias(), 0, 4) !== 'csi-') {
+                        $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $l->getId()]).'</info>');
+                        $processed = $listModel->rebuildListLeads($l, $batch, $max, $output);
+                        $output->writeln(
+                            '<comment>'.$translator->trans('mautic.lead.list.rebuild.leads_affected', ['%leads%' => $processed]).'</comment>'."\n"
+                        );
+                    }
+
+                    unset($l);
+                }
             }
 
             unset($lists);
