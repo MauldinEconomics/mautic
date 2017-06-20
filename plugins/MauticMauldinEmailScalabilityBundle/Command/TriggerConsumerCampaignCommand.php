@@ -82,24 +82,24 @@ class TriggerConsumerCampaignCommand extends QueueProcessingCommand
                 $totalProcessed = 0;
 
                 $output->writeln(
-                    '<info>'.$translator->trans('mauldin.campaign.consume.triggering_queue', ['%id%' => $campaign->getId()]).'</info>',
+                    '<info>'.$translator->trans('mauldin.campaign.consume.consuming_queue', ['%id%' => $campaign->getId()]).'</info>',
                     OutputInterface::VERBOSITY_VERBOSE
                 );
 
                 if (!$negativeOnly && !$scheduleOnly) {
-                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.consuming', ['%id%' => $campaign->getId()]).'</info>');
                     //trigger starting action events for newly added contacts
                     $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.starting').'</comment>');
                     $eventModel->consumeStartingEvents($campaign, $totalProcessed, $output);
                 }
                 if (!$negativeOnly) {
-                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.consuming', ['%id%' => $campaign->getId()]).'</info>');
                     //trigger scheduled action events for newly added contacts
                     $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.scheduled').'</comment>');
                     $eventModel->consumeScheduledEvents($campaign, $totalProcessed, $output);
                 }
                 if (!$scheduleOnly) {
-                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.triggering', ['%id%' => $campaign->getId()]).'</info>');
+                    $output->writeln('<info>'.$translator->trans('mauldin.campaign.consume.consuming', ['%id%' => $campaign->getId()]).'</info>');
                     //trigger negative action events for newly added contacts
                     $output->writeln('<comment>'.$translator->trans('mauldin.campaign.consume.negative').'</comment>');
                     $eventModel->consumeNegativeEvents($campaign, $totalProcessed, $output);
