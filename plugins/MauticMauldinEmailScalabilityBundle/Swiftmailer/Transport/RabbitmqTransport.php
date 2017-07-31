@@ -8,9 +8,17 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Swiftmailer\Transport;
 
+use Exception;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\MemoryTransactionInterface;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\QueuedTransportInterface;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\TransportQueueInterface;
+use ReflectionClass;
+use SendGrid;
+use SendGrid\Content;
+use SendGrid\Email;
+use SendGrid\Mail;
+use SendGrid\Personalization;
+use Swift_Mime_Headers_ParameterizedHeader;
 
 /**
  * Class RabbitmqTransport.
@@ -19,6 +27,11 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
 {
     /** @var TransportQueueInterface */
     private $queue;
+
+    private $mode = 'smtp';
+
+    private $sandbox = false;
+    private $apiKey;
 
     private $transaction = false;
     private $logs        = [];
@@ -78,9 +91,97 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
      *
      * @throws \Swift_TransportException
      */
-    public function sendDirect(\Swift_Mime_Message $message, &$failedRecipients = null)
+    public function sendDirect(\Swift_Message $message, &$failedRecipients = null)
     {
-        return parent::send($message, $failedRecipients);
+        switch($this->mode) {
+            case 'sendgrid_api':
+                # Get email data
+                $fromA = $message->getFrom();
+                $emailValue = reset($fromA);
+
+                # Workaround for calling a private method from Swift_Mailer
+                $reflection_class = new ReflectionClass("Swift_Message");
+                $reflection_method = $reflection_class->getMethod("_becomeMimePart");
+                $reflection_method->setAccessible(true);
+                $result = $reflection_method->invoke($message, NULL);
+
+                $mail = new OpenMail(new Email($emailValue, key($fromA)), $message->getSubject());
+
+                $personalization = new Personalization();
+                // Add to
+                foreach ($message->getTo() as $k => $v) {
+                    $personalization->addTo(new Email($v, $k));
+                }
+
+                // Add bcc
+                if ($message->getBcc()) {
+                    foreach ($message->getBcc() as $k => $v) {
+                        $personalization->addBcc(new Email($v, $k));
+                    }
+                }
+
+                // Add cc
+                if($message->getCc()) {
+                    foreach ($message->getCc() as $v) {
+                        $personalization->addCc(new Email(null, $v));
+                    }
+                }
+
+                $mail->addPersonalization($personalization);
+                $mail->setReplyTo(new SendGrid\ReplyTo($message->getReplyTo()[0]));
+
+                /** @var \Swift_Mime_SimpleMimeEntity $v */
+                foreach (array_reverse($message->getChildren()) as $v) {
+                    if ($v->getBody() !== '') {
+                        self::addContent($mail,$v);
+                    }
+                }
+                self::addContent($mail, $result);
+
+                $sg = new SendGrid($this->apiKey);
+
+                # Setup Sendgrid connection
+                $sg = new SendGrid($this->apiKey);
+                $settings = new SendGrid\MailSettings();
+                $settings->setSandboxMode(['enable' => $this->isSandbox()]);
+                $mail->setMailSettings($settings);
+
+                ini_set('xdebug.var_display_max_depth', 5);
+                ini_set('xdebug.var_display_max_children', 256);
+                ini_set('xdebug.var_display_max_data', 1024);
+                var_dump($mail);
+
+                $response = $sg->client->mail()->send()->post($mail);
+
+                var_dump($response);
+
+                if($response->statusCode() == 200 || $response->statusCode() == 202) {
+                    return true;
+                } else {
+                    throw new Exception('Sendgrid API error code='. $response->statusCode(). ' message = '. $response->body());
+                }
+
+            case 'smtp':
+                return parent::send($message, $failedRecipients);
+
+            default:
+                throw  new Exception('transport mode not supported: '. $this->mode);
+        }
+    }
+
+    public static function addContent($mail,$v){
+        if ($v->getNestingLevel() == \Swift_Mime_MimeEntity::LEVEL_MIXED) {
+            $attach = new SendGrid\Attachment();
+            $attach->setContent(base64_encode($v->getBody()));
+            $attach->setType($v->getContentType());
+
+            /** @var Swift_Mime_Headers_ParameterizedHeader $content */
+            $content = $v->getHeaders()->get('content-disposition');
+            $attach->setFilename($content->getParameter('filename'));
+            $mail->addAttachment($attach);
+        } else {
+            $mail->addContent(new Content($v->getContentType(), $v->getBody()));
+        }
     }
 
     public function begin()
@@ -123,5 +224,64 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
         } else {
             return false;
         }
+    }
+
+    /**
+     * @return null
+     */
+    public function getApiKey()
+    {
+        return $this->apiKey;
+    }
+
+    /**
+     * @param null $apiKey
+     */
+    public function setApiKey($apiKey)
+    {
+        $this->apiKey = $apiKey;
+    }
+
+    /**
+     * @return string
+     */
+    public function getMode()
+    {
+        return $this->mode;
+    }
+
+    /**
+     * @param string $mode
+     */
+    public function setMode($mode)
+    {
+        $this->mode = $mode;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isSandbox()
+    {
+        return $this->sandbox;
+    }
+
+    /**
+     * @param bool $sandbox
+     */
+    public function setSandbox($sandbox)
+    {
+        $this->sandbox = $sandbox === null ? false : $sandbox;
+    }
+
+}
+
+class OpenMail extends Mail {
+
+    // Create new constructor
+    public function __construct($from, $subject)
+    {
+        $this->setFrom($from);
+        $this->setSubject($subject);
     }
 }
