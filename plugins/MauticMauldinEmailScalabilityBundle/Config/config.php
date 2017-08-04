@@ -60,6 +60,9 @@ return [
                 'serviceAlias' => 'swiftmailer.mailer.transport.%s',
                 'methodCalls'  => [
                     'setUsername'       => ['%mautic.mailer_user%'],
+                    'setMode'           => ['%mautic.mailer_transport_rabbitmq_mode%'],
+                    'setApiKey'         => ['%mautic.sendgrid_api%'],
+                    'setSandbox'        => ['%mautic.sendgrid_api_sandbox%'],
                     'setPassword'       => ['%mautic.mailer_password%'],
                     'setTransportQueue' => ['mauldin.transport_queue.rabbitmq'],
                 ],

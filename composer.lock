@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "50421c6d7246b4ccd048c2f5474e4ee4",
+    "content-hash": "8b1941a13d4cac5d46881f5480bc5763",
     "packages": [
         {
             "name": "aws/aws-sdk-php",
@@ -4310,6 +4310,104 @@
             "time": "2016-09-08T13:15:00+00:00"
         },
         {
+            "name": "sendgrid/php-http-client",
+            "version": "3.7.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sendgrid/php-http-client.git",
+                "reference": "bec48e0e2e41331438ba7872805b86c45387178d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sendgrid/php-http-client/zipball/bec48e0e2e41331438ba7872805b86c45387178d",
+                "reference": "bec48e0e2e41331438ba7872805b86c45387178d",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.6"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "~4.4",
+                "squizlabs/php_codesniffer": "~2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SendGrid\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matt Bernier",
+                    "email": "dx@sendgrid.com"
+                },
+                {
+                    "name": "Elmer Thomas",
+                    "email": "elmer@thinkingserious.com"
+                }
+            ],
+            "description": "HTTP REST client, simplified for PHP",
+            "homepage": "http://github.com/sendgrid/php-http-client",
+            "keywords": [
+                "api",
+                "fluent",
+                "http",
+                "rest",
+                "sendgrid"
+            ],
+            "time": "2017-05-05T06:15:41+00:00"
+        },
+        {
+            "name": "sendgrid/sendgrid",
+            "version": "6.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sendgrid/sendgrid-php.git",
+                "reference": "8db454e4b5674b545c207a162b64202b0d63259b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sendgrid/sendgrid-php/zipball/8db454e4b5674b545c207a162b64202b0d63259b",
+                "reference": "8db454e4b5674b545c207a162b64202b0d63259b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.6",
+                "sendgrid/php-http-client": "~3.7"
+            },
+            "replace": {
+                "sendgrid/sendgrid-php": "*"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "4.*",
+                "squizlabs/php_codesniffer": "2.*"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "lib/SendGrid.php",
+                    "lib/helpers/mail/Mail.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "This library allows you to quickly and easily send emails through SendGrid using PHP.",
+            "homepage": "http://github.com/sendgrid/sendgrid-php",
+            "keywords": [
+                "email",
+                "grid",
+                "send",
+                "sendgrid"
+            ],
+            "time": "2017-07-01T04:30:16+00:00"
+        },
+        {
             "name": "sensio/distribution-bundle",
             "version": "v5.0.17",
             "source": {
@@ -6595,60 +6693,6 @@
             "time": "2016-07-30T07:20:35+00:00"
         },
         {
-            "name": "symfony/proxy-manager-bridge",
-            "version": "v3.3.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/proxy-manager-bridge.git",
-                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/proxy-manager-bridge/zipball/bf998071bf4b457d185ba4deb3add9cb982f1e48",
-                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48",
-                "shasum": ""
-            },
-            "require": {
-                "ocramius/proxy-manager": "~0.4|~1.0|~2.0",
-                "php": ">=5.5.9",
-                "symfony/dependency-injection": "~2.8|~3.0"
-            },
-            "require-dev": {
-                "symfony/config": "~2.8|~3.0"
-            },
-            "type": "symfony-bridge",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "3.3-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Bridge\\ProxyManager\\": ""
-                },
-                "exclude-from-classmap": [
-                    "/Tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Fabien Potencier",
-                    "email": "fabien@symfony.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony ProxyManager Bridge",
-            "homepage": "https://symfony.com",
-            "time": "2017-05-24T16:13:59+00:00"
-        },
-        {
             "name": "symfony/routing",
             "version": "v2.8.15",
             "source": {
@@ -8867,6 +8911,60 @@
             ],
             "description": "This bundle generates code for you",
             "time": "2016-12-05T16:01:19+00:00"
+        },
+        {
+            "name": "symfony/proxy-manager-bridge",
+            "version": "v3.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/proxy-manager-bridge.git",
+                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/proxy-manager-bridge/zipball/bf998071bf4b457d185ba4deb3add9cb982f1e48",
+                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48",
+                "shasum": ""
+            },
+            "require": {
+                "ocramius/proxy-manager": "~0.4|~1.0|~2.0",
+                "php": ">=5.5.9",
+                "symfony/dependency-injection": "~2.8|~3.0"
+            },
+            "require-dev": {
+                "symfony/config": "~2.8|~3.0"
+            },
+            "type": "symfony-bridge",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.3-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Bridge\\ProxyManager\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony ProxyManager Bridge",
+            "homepage": "https://symfony.com",
+            "time": "2017-05-24T16:13:59+00:00"
         },
         {
             "name": "symfony/var-dumper",
