@@ -35,7 +35,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     /**
      * Send an email to lead(s).
      *
-     * @param   $email
+     * @param  Email $email
      * @param   $leads
      * @param   $options = array()
      *                   array source array('model', 'id')
@@ -53,7 +53,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     public function sendEmail($email, $leads, $options = [])
     {
         $listId              = (isset($options['listId'])) ? $options['listId'] : null;
-        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : false;
+        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : $email->isIgnoreDNC() ;
         $tokens              = (isset($options['tokens'])) ? $options['tokens'] : [];
         $sendBatchMail       = (isset($options['sendBatchMail'])) ? $options['sendBatchMail'] : true;
         $assetAttachments    = (isset($options['assetAttachments'])) ? $options['assetAttachments'] : [];
@@ -396,7 +396,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     }
 
     /**
-     * @param int  $emailId
+     * @param Email  $emailId
      * @param null $variantIds
      * @param null $listIds
      * @param bool $countOnly
@@ -406,9 +406,10 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
      *
      * @return array|int
      */
-    public function getEmailPendingLeads($emailId, $variantIds = null, $listIds = null, $countOnly = false, $limit = null, $lastLead = null, $statsOnly = false)
+    public function getEmailPendingLeads($email, $variantIds = null, $listIds = null, $countOnly = false, $limit = null, $lastLead = null, $statsOnly = false)
     {
         // Do not include leads in the do not contact table
+        $emailId = $email->getId();
         $dncQb = $this->em->getConnection()->createQueryBuilder();
         $dncQb->select('null')
             ->from(MAUTIC_TABLE_PREFIX.'lead_donotcontact', 'dnc')
@@ -513,10 +514,12 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         }
         $statPrefix = $statsOnly ? 'EXISTS' : 'NOT EXISTS';
         $q->from(MAUTIC_TABLE_PREFIX.'leads', 'l')
-            ->andWhere(sprintf('NOT EXISTS (%s)', $dncQb->getSQL()))
             ->andWhere(sprintf($statPrefix.' (%s)', $statQb->getSQL()))
             ->andWhere(sprintf('NOT EXISTS (%s)', $mqQb->getSQL()))
             ->setParameter('false', false, 'boolean');
+        if(!$email->isIgnoreDNC()) {
+            $q->andWhere(sprintf('NOT EXISTS (%s)', $dncQb->getSQL()));
+        }
         if ($lastLead !== null) {
             $q->andWhere($q->expr()->gt('l.id', $lastLead));
         }
@@ -565,7 +568,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     public function getPendingLeads(Email $email, $listId = null, $countOnly = false, $limit = null, $includeVariants = true, $lastLead = null, $statsOnly = false)
     {
         $variantIds = ($includeVariants) ? $email->getRelatedEntityIds() : null;
-        $total      = $this->getEmailPendingLeads($email->getId(), $variantIds, $listId, $countOnly, $limit, $lastLead, $statsOnly);
+        $total      = $this->getEmailPendingLeads($email, $variantIds, $listId, $countOnly, $limit, $lastLead, $statsOnly);
 
         return $total;
     }
