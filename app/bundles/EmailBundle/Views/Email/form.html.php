@@ -202,7 +202,7 @@ $isCodeMode = ($email->getTemplate() === 'mautic_code_mode');
                 <?php echo $view['form']->row($form['publishUp']); ?>
                 <?php echo $view['form']->row($form['publishDown']); ?>
             <?php endif; ?>
-
+            <?php echo $view['form']->row($form['ignoreDNC']); ?>
             <?php echo $view['form']->row($form['unsubscribeForm']); ?>
         </div>
         <div class="hide">
