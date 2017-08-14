@@ -21,14 +21,16 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ProcessCSIOptListCommand extends ModeratedCommand
 {
+    const CSI_ENDPOINT = 'api/v2/listmanager';
+    const CSI_OPT_OUT  = 'optOut';
+    const CSI_OPT_IN   = 'optIn';
+
     private $username;
     private $password;
     private $api_key;
     private $entity;
     private $host;
-    const CSI_ENDPOINT = '/api/v2/listmanager/';
-    const CSI_OPT_OUT  = self::CSI_ENDPOINT.'optOut/live';
-    const CSI_OPT_IN   = self::CSI_ENDPOINT.'optIn/live';
+    private $csi_env;
 
     /**
      * {@inheritdoc}
@@ -58,6 +60,8 @@ EOT
         $this->api_key  = $container->getParameter('mautic.csiapi_key');
         $this->entity   = $container->getParameter('mautic.csiapi_entity_code');
         $this->host     = $container->getParameter('mautic.csiapi_host');
+        $this->csi_env  = $container->getParameter('mautic.csiapi_env');
+
         $dispatcher     = $container->get('event_dispatcher');
 
         /** @var ChannelHelper $channelHelper */
@@ -162,10 +166,12 @@ EOT
      */
     public function optIn($email, $list)
     {
-        $url      = $this->host.'/'.$this->entity.self::CSI_OPT_IN;
+        $urlParts = [$this->host, $this->entity, self::CSI_ENDPOINT, self::CSI_OPT_IN, $this->csi_env];
+        $url      = implode('/', $urlParts);
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
+
         if (!$result['response']['success']) {
             $result['request'] = ['url' => $url, 'data' => $data];
             $result['time']    = new \DateTime();
@@ -181,7 +187,8 @@ EOT
      */
     public function optOut($email, $list)
     {
-        $url      = $this->host.'/'.$this->entity.self::CSI_OPT_OUT;
+        $urlParts = [$this->host, $this->entity, self::CSI_ENDPOINT, self::CSI_OPT_OUT, $this->csi_env];
+        $url      = implode('/', $urlParts);
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
