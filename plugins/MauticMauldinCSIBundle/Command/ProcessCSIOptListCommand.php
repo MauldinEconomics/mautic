@@ -25,8 +25,8 @@ class ProcessCSIOptListCommand extends ModeratedCommand
     private $password;
     private $host;
     const CSI_ENDPOINT = '/api/v2/listmanager/';
-    const CSI_OPT_OUT  = self::CSI_ENDPOINT.'optOut';
-    const CSI_OPT_IN   = self::CSI_ENDPOINT.'optIn';
+    const CSI_OPT_OUT  = self::CSI_ENDPOINT.'optOut/live';
+    const CSI_OPT_IN   = self::CSI_ENDPOINT.'optIn/live';
 
     /**
      * {@inheritdoc}
@@ -53,6 +53,8 @@ EOT
 
         $this->username = $container->getParameter('mautic.csiapi_username');
         $this->password = $container->getParameter('mautic.csiapi_password');
+        $this->api_key  = $container->getParameter('mautic.csiapi_key');
+        $this->entity   = $container->getParameter('mautic.csiapi_entity_code');
         $this->host     = $container->getParameter('mautic.csiapi_host');
         $dispatcher     = $container->get('event_dispatcher');
 
@@ -88,6 +90,36 @@ EOT
     private function get($url, $data = false)
     {
         $curl = curl_init();
+
+        $api_id = uniqid('ApiID_', true);
+
+        $timestamp = time();
+
+        $hash = base64_encode(hash_hmac('sha512', $timestamp, $this->api_key, true));
+
+        // build request url
+        if ($data) {
+            $url = sprintf('%s?%s', $url, http_build_query($data));
+        }
+
+        // Header Configuration
+        $auth = $this->username.':'.$this->password;
+        curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($curl, CURLOPT_USERPWD, $auth);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLINFO_HEADER_OUT, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, [
+            'Accept: application/xml',
+            'User-Agent: Mautic Jobs Client Library',
+            'X-Site-Referer-Url: '.((empty($_SERVER['HTTP_REFERER'])) ? 'Unknown' : $_SERVER['HTTP_REFERER']),
+            'X-Site-Server-Url: '.$_SERVER['SERVER_NAME'].$_SERVER['REQUEST_URI'],
+            'X-ApiVersion: '.'v2',
+            "X-ApiID: {$api_id}",
+            "X-Auth: {$hash}",
+            "X-Entity: {$this->entity}",
+            "X-Stamp: {$timestamp}",
+        ]);
 
         // build request url
         if ($data) {
@@ -128,7 +160,7 @@ EOT
      */
     public function optIn($email, $list)
     {
-        $url      = $this->host.self::CSI_OPT_IN;
+        $url      = $this->host.'/'.$this->entity.self::CSI_OPT_IN;
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
@@ -147,7 +179,7 @@ EOT
      */
     public function optOut($email, $list)
     {
-        $url      = $this->host.self::CSI_OPT_OUT;
+        $url      = $this->host.'/'.$this->entity.self::CSI_OPT_OUT;
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
