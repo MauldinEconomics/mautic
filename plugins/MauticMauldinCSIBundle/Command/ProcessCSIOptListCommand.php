@@ -23,6 +23,8 @@ class ProcessCSIOptListCommand extends ModeratedCommand
 {
     private $username;
     private $password;
+    private $api_key;
+    private $entity;
     private $host;
     const CSI_ENDPOINT = '/api/v2/listmanager/';
     const CSI_OPT_OUT  = self::CSI_ENDPOINT.'optOut/live';
