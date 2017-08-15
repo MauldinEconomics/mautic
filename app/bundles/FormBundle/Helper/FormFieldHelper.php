@@ -34,6 +34,12 @@ class FormFieldHelper extends AbstractFormFieldHelper
     private $validator;
 
     /**
+     * Used as key to communicate with Google's recaptcha api
+     * @var type string
+     */
+    private $grecaptcha_secret_key;
+
+    /**
      * @var array
      */
     private $types = [
@@ -46,6 +52,7 @@ class FormFieldHelper extends AbstractFormFieldHelper
                 Blank::class => ['message' => 'mautic.form.submission.captcha.invalid'],
             ],
         ],
+        'invisiblecaptcha' => [/*constraint implemented as custom code*/],
         'checkboxgrp' => [],
         'country'     => [],
         'date'        => [],
@@ -81,8 +88,10 @@ class FormFieldHelper extends AbstractFormFieldHelper
      * @param TranslatorInterface $translator
      * @param ValidatorInterface  $validator
      */
-    public function __construct(TranslatorInterface $translator, ValidatorInterface $validator = null)
+    public function __construct(TranslatorInterface $translator, ValidatorInterface $validator = null,
+        $grecapcha_secret_key=null)
     {
+        $this->grecaptcha_secret_key = $grecapcha_secret_key;
         $this->translator = $translator;
 
         if (null === $validator) {
@@ -186,6 +195,34 @@ class FormFieldHelper extends AbstractFormFieldHelper
 
                         $errors[] = $this->translator->trans($v->getMessage(), $transParameters, 'validators');
                     }
+                }
+            }
+        }
+
+        if ($type === 'invisiblecaptcha') {
+            # prepare api grecaptcha request
+            $user_token = $value;
+            $url = 'https://www.google.com/recaptcha/api/siteverify';
+            $data = array(
+                'secret'   => $this->grecaptcha_secret_key,
+                'response' => $user_token,
+            );
+            $options = array('http' => array(
+                'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+                'method'  => 'POST',
+                'content' => http_build_query($data)
+            ));
+            # query google's api about status of captcha token
+            $context  = stream_context_create($options);
+            $result = file_get_contents($url, false, $context);
+            # check for problems on api request
+            if ($result === FALSE) {
+                $errors[] = "Invalid Captcha";
+            } else {
+                # decode api answer and check for success
+                $ans = json_decode($result);
+                if(!$ans->success){
+                    $errors[] = "Invalid Captcha";
                 }
             }
         }
