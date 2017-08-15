@@ -220,6 +220,11 @@ return [
                 'class' => 'Mautic\FormBundle\Form\Type\FormFieldCaptchaType',
                 'alias' => 'formfield_captcha',
             ],
+            'mautic.form.type.field_propertyinvisiblecaptcha' => [
+                'class' => 'Mautic\FormBundle\Form\Type\FormFieldInvisiblecaptchaType',
+                'alias' => 'formfield_invisiblecaptcha',
+                'arguments' => ['%mautic.invisiblecaptcha.client_key%']
+            ],
             'muatic.form.type.field_propertypagebreak' => [
                 'class'     => \Mautic\FormBundle\Form\Type\FormFieldPageBreakType::class,
                 'arguments' => [
@@ -310,6 +315,7 @@ return [
                 'arguments' => [
                     'translator',
                     'validator',
+                    '%mautic.invisiblecaptcha.server_key%',
                 ],
             ],
             'mautic.form.helper.token' => [
