@@ -21,12 +21,16 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ProcessCSIOptListCommand extends ModeratedCommand
 {
+    const CSI_ENDPOINT = 'api/v2/listmanager';
+    const CSI_OPT_OUT  = 'optOut';
+    const CSI_OPT_IN   = 'optIn';
+
     private $username;
     private $password;
+    private $api_key;
+    private $entity;
     private $host;
-    const CSI_ENDPOINT = '/api/v2/listmanager/';
-    const CSI_OPT_OUT  = self::CSI_ENDPOINT.'optOut';
-    const CSI_OPT_IN   = self::CSI_ENDPOINT.'optIn';
+    private $csi_env;
 
     /**
      * {@inheritdoc}
@@ -53,7 +57,11 @@ EOT
 
         $this->username = $container->getParameter('mautic.csiapi_username');
         $this->password = $container->getParameter('mautic.csiapi_password');
+        $this->api_key  = $container->getParameter('mautic.csiapi_key');
+        $this->entity   = $container->getParameter('mautic.csiapi_entity_code');
         $this->host     = $container->getParameter('mautic.csiapi_host');
+        $this->csi_env  = $container->getParameter('mautic.csiapi_env');
+
         $dispatcher     = $container->get('event_dispatcher');
 
         /** @var ChannelHelper $channelHelper */
@@ -89,6 +97,12 @@ EOT
     {
         $curl = curl_init();
 
+        $api_id = uniqid('ApiID_', true);
+
+        $timestamp = time();
+
+        $hash = base64_encode(hash_hmac('sha512', $timestamp, $this->api_key, true));
+
         // build request url
         if ($data) {
             $url = sprintf('%s?%s', $url, http_build_query($data));
@@ -101,6 +115,17 @@ EOT
         curl_setopt($curl, CURLOPT_URL, $url);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLINFO_HEADER_OUT, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, [
+            'Accept: application/xml',
+            'User-Agent: Mautic Jobs Client Library',
+            'X-Site-Referer-Url: '.((empty($_SERVER['HTTP_REFERER'])) ? 'Unknown' : $_SERVER['HTTP_REFERER']),
+            'X-Site-Server-Url: '.$_SERVER['SERVER_NAME'].$_SERVER['REQUEST_URI'],
+            'X-ApiVersion: '.'v2',
+            "X-ApiID: {$api_id}",
+            "X-Auth: {$hash}",
+            "X-Entity: {$this->entity}",
+            "X-Stamp: {$timestamp}",
+        ]);
 
         //Make GET Call
         $result   = curl_exec($curl);
@@ -128,10 +153,12 @@ EOT
      */
     public function optIn($email, $list)
     {
-        $url      = $this->host.self::CSI_OPT_IN;
+        $urlParts = [$this->host, $this->entity, self::CSI_ENDPOINT, self::CSI_OPT_IN, $this->csi_env];
+        $url      = implode('/', $urlParts);
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
+
         if (!$result['response']['success']) {
             $result['request'] = ['url' => $url, 'data' => $data];
             $result['time']    = new \DateTime();
@@ -147,7 +174,8 @@ EOT
      */
     public function optOut($email, $list)
     {
-        $url      = $this->host.self::CSI_OPT_OUT;
+        $urlParts = [$this->host, $this->entity, self::CSI_ENDPOINT, self::CSI_OPT_OUT, $this->csi_env];
+        $url      = implode('/', $urlParts);
         $data     = ['email' => $email, 'code' => $list];
         $response = $this->get($url, $data);
         $result   = XmlParserHelper::arrayFromXml($response);
