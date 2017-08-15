@@ -28,6 +28,7 @@ use Mautic\FormBundle\Form\Type\FormFieldCaptchaType;
 use Mautic\FormBundle\Form\Type\FormFieldFileType;
 use Mautic\FormBundle\Form\Type\FormFieldGroupType;
 use Mautic\FormBundle\Form\Type\FormFieldHTMLType;
+use Mautic\FormBundle\Form\Type\FormFieldInvisiblecaptchaType;
 use Mautic\FormBundle\Form\Type\FormFieldPageBreakType;
 use Mautic\FormBundle\Form\Type\FormFieldPlaceholderType;
 use Mautic\FormBundle\Form\Type\FormFieldSelectType;
@@ -286,6 +287,13 @@ return [
                 'class' => FormFieldCaptchaType::class,
                 'alias' => 'formfield_captcha',
             ],
+            'mautic.form.type.field_propertyinvisiblecaptcha' => [
+                'class' => FormFieldInvisiblecaptchaType::class,
+                'alias' => 'formfield_invisiblecaptcha',
+                'arguments' => [
+                    '%mautic.invisiblecaptcha.client_key%',
+                ]
+            ],
             'mautic.form.type.field_propertypagebreak' => [
                 'class'     => FormFieldPageBreakType::class,
                 'arguments' => [
@@ -396,6 +404,7 @@ return [
                 'arguments' => [
                     'translator',
                     'validator',
+                    '%mautic.invisiblecaptcha.server_key%',
                 ],
             ],
             'mautic.form.helper.form_uploader' => [

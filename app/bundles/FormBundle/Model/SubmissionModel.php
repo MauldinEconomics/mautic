@@ -249,6 +249,17 @@ class SubmissionModel extends CommonFormModel
                 }
             }
 
+            if ($type === 'invisiblecaptcha') {
+                $value = $request->get("g-recaptcha-response");
+                $captcha = $this->fieldHelper->validateFieldValue($type, $value, $f);
+                if (!empty($captcha)) {
+                    $props = $f->getProperties();
+                    //check for a custom message
+                    $validationErrors[$alias] = (!empty($props['errorMessage'])) ? $props['errorMessage'] : implode('<br />', $captcha);
+                }
+                continue;
+            }
+
             if ($value === '' && $f->isRequired()) {
                 //field is required, but hidden from form because of 'ShowWhenValueExists'
                 if ($f->getShowWhenValueExists() === false && !isset($post[$alias])) {
