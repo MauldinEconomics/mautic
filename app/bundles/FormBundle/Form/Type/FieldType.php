@@ -107,6 +107,13 @@ class FieldType extends AbstractType
                 case 'captcha':
                     $addShowLabel = $addIsRequired = $addDefaultValue = $addLeadFieldList = $addSaveResult = $addBehaviorFields = false;
                     break;
+                case 'invisiblecaptcha':
+                    $addHelpMessage      = $addDefaultValue      = $addIsRequired      = $addLeadFieldList      = $addSaveResult      = $addBehaviorFields      = false;
+                    $labelText           = 'mautic.form.field.form.label';
+                    $addShowLabel = $addLabelAttributes = $addInputAttributes = false;
+                    // Allow html
+                    $cleanMasks['properties'] = 'html';
+                    break;
                 case 'pagebreak':
                     $addShowLabel = $allowCustomAlias = $addHelpMessage = $addIsRequired = $addDefaultValue = $addLeadFieldList = $addSaveResult = $addBehaviorFields = false;
                     break;
@@ -471,6 +478,18 @@ class FieldType extends AbstractType
                         [
                             'label' => false,
                             'data'  => $propertiesData,
+                        ]
+                    );
+                    break;
+                case 'invisiblecaptcha':
+                    $builder->add(
+                        'properties',
+                        'formfield_invisiblecaptcha',
+                        [
+                            'required' => false,
+                            'label'    => false,
+                            'editor'   => true,
+                            'data'     => $propertiesData,
                         ]
                     );
                     break;
