@@ -127,19 +127,6 @@ EOT
             "X-Stamp: {$timestamp}",
         ]);
 
-        // build request url
-        if ($data) {
-            $url = sprintf('%s?%s', $url, http_build_query($data));
-        }
-
-        // Header Configuration
-        $auth = $this->username.':'.$this->password;
-        curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-        curl_setopt($curl, CURLOPT_USERPWD, $auth);
-        curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLINFO_HEADER_OUT, true);
-
         //Make GET Call
         $result   = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
