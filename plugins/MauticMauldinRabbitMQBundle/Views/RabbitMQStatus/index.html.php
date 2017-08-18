@@ -40,7 +40,21 @@ $view['slots']->set('headerTitle', $view['translator']->trans('mautic.rabbitmq.m
                 'MauticCoreBundle:Helper:tableheader.html.php',
                 [
                     'sessionVar' => 'report',
-                    'text'       => 'mautic.rabbitmq.queue.rate',
+                    'text'       => 'mautic.rabbitmq.queue.rate.in',
+                    'class'      => 'col-report-id visible-md visible-lg',
+                ]);
+            echo $view->render(
+                'MauticCoreBundle:Helper:tableheader.html.php',
+                [
+                    'sessionVar' => 'report',
+                    'text'       => 'mautic.rabbitmq.queue.rate.out',
+                    'class'      => 'col-report-id visible-md visible-lg',
+                ]);
+            echo $view->render(
+                'MauticCoreBundle:Helper:tableheader.html.php',
+                [
+                    'sessionVar' => 'report',
+                    'text'       => 'mautic.rabbitmq.queue.rate.net',
                     'class'      => 'col-report-id visible-md visible-lg',
                 ]);
             echo $view->render(
@@ -66,7 +80,13 @@ $view['slots']->set('headerTitle', $view['translator']->trans('mautic.rabbitmq.m
                     <?php echo $item["total"]; ?>
                 </td>
                 <td>
-                    <?php echo $item["rate"]; ?>/s
+                    <?php echo $item["rate_in"]; ?>/s
+                </td>
+                <td>
+                    <?php echo $item["rate_out"]; ?>/s
+                </td>
+                <td>
+                    <?php echo $item["rate_net"]; ?>/s
                 </td>
                 <td>
                     <?php echo $item["time_to_empty"]; ?>

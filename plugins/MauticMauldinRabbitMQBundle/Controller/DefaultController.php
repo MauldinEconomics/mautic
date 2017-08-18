@@ -24,6 +24,8 @@ class DefaultController extends CommonController {
             "messages",
             "messages_details.rate",
             "messages_ready",
+            "message_stats.ack_details.rate",
+            "message_stats.publish_details.rate",
         ];
         $remote_url = 'http://' . $host . ":" . $port . '/api/queues?columns=' . implode(",", $columns);
         $opts = array(
@@ -38,12 +40,16 @@ class DefaultController extends CommonController {
         $queues = [];
         //proccess http response to build item list required by view
         foreach($data as $e){
-            $rate = $this->getOrDefault($e, "messages_details.rate", 0);
+            $rate_in = $this->getOrDefault($e, "message_stats.publish_details.rate", 0);
+            $rate_out = $this->getOrDefault($e, "message_stats.ack_details.rate", 0);
+            $rate_net = $this->getOrDefault($e, "messages_details.rate", 0);
             $total = $this->getOrDefault($e, "messages", 0);
             $queues[] = [
                 "is_auto_delete" => $e["auto_delete"] ? "Yes" : "No",
-                "rate" => $rate,
-                "time_to_empty" => $this->getTimeToEmpty($total, $rate),
+                "rate_in" => $rate_in,
+                "rate_out" => $rate_out,
+                "rate_net" => $rate_net,
+                "time_to_empty" => $this->getTimeToEmpty($total, $rate_net),
                 "pname" => $this->prettifyName($e["name"]),
                 "total" => $total,
             ];
