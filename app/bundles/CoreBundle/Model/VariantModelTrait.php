@@ -43,6 +43,8 @@ trait VariantModelTrait
             if ($parent->getId() != $entity->getId()) {
                 if (method_exists($parent, 'setIsPublished')) {
                     $parent->setIsPublished(false);
+                    $entity->setPublishUp($parent->getPublishUp());
+                    $entity->setPublishDown($parent->getPublishDown());
                 }
 
                 $entity->addVariantChild($parent);
