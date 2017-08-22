@@ -174,6 +174,13 @@ class EmailType extends AbstractType
 
         $builder->add('isPublished', 'yesno_button_group');
 
+        $builder->add('ignoreDNC', 'yesno_button_group', [
+            'label' => 'mautic.email.form.ignoreDNC',
+            'attr' => [
+                'tooltip' => 'mautic.email.form.ignoreDNC.tooltip'
+            ]
+        ]);
+
         $builder->add(
             'publishUp',
             'datetime',

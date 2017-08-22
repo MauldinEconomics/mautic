@@ -170,6 +170,11 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     private $assetAttachments;
 
     /**
+     * @var boolean
+     */
+    private $ignoreDNC = false;
+
+    /**
      * Used to identify the page for the builder.
      *
      * @var
@@ -277,9 +282,12 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
         $builder->createField('autoRolloutDate', 'datetime')
             ->columnName('auto_rollout_date')
             ->build();
-
         $builder->createField('sampleSize', 'integer')
             ->columnName('sample_size')
+            ->build();
+
+        $builder->createField('ignoreDNC', 'boolean')
+            ->columnName('ignore_dnc')
             ->build();
 
         $builder->createField('readCount', 'integer')
@@ -467,6 +475,7 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
                     'unsubscribeForm',
                     'dynamicContent',
                     'lists',
+                    'ignoreDNC',
                 ]
             )
             ->build();
@@ -1113,5 +1122,21 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     public function setAutoRolloutDate($autoRolloutDate)
     {
         $this->autoRolloutDate = $autoRolloutDate;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isIgnoreDNC()
+    {
+        return $this->ignoreDNC;
+    }
+
+    /**
+     * @param bool $ignoreDNC
+     */
+    public function setIgnoreDNC( $ignoreDNC)
+    {
+        $this->ignoreDNC = $ignoreDNC;
     }
 }
