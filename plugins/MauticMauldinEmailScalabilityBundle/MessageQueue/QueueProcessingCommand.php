@@ -21,7 +21,7 @@ abstract class QueueProcessingCommand extends ModeratedCommand
 {
     const MAX_RETRIES     = 10;
     const DEFAULT_TIMEOUT = 0.2;
-    const INITIAL_TIMEOUT = 30;
+    const INITIAL_TIMEOUT = 10;
 
     /**
      * {@inheritdoc}
@@ -32,8 +32,8 @@ abstract class QueueProcessingCommand extends ModeratedCommand
     {
         $this->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', self::MAX_RETRIES)
             ->addOption('--max-items', '-m', InputOption::VALUE_REQUIRED, 'Maximum amount of messages processed.', PHP_INT_MAX)
-            ->addOption('--default-timeout', '-dt', InputOption::VALUE_REQUIRED, 'Time to wait for an item.', self::DEFAULT_TIMEOUT)
-            ->addOption('--initial-timeout', '-it', InputOption::VALUE_REQUIRED, 'Time to wait for the first item.', self::INITIAL_TIMEOUT);
+            ->addOption('--default-timeout', null, InputOption::VALUE_REQUIRED, 'Time to wait for an item.', self::DEFAULT_TIMEOUT)
+            ->addOption('--initial-timeout', null, InputOption::VALUE_REQUIRED, 'Time to wait for the first item.', self::INITIAL_TIMEOUT);
 
         parent::configure();
     }
@@ -65,27 +65,28 @@ abstract class QueueProcessingCommand extends ModeratedCommand
         $timeout_counter = 0;
         // Count messages
         $messages_sent = 0;
-
-        try {
-            $this->channel->wait($initialTimeout);
-            ++$messages_sent;
-        } catch (AMQPTimeoutException $e) {
-            return 0;
-        }
-        while (
-            count($this->channel->hasCallbacks()) >= 1
-            && ($timeout_counter < $maxRetries)
-            && ($messages_sent < $maxItems)
-        ) {
+        // Exit when no handlers exist
+        if($this->channel->hasCallbacks()) {
             try {
-                $this->channel->wait($defaultTimeout);
+                $this->channel->wait($initialTimeout);
                 ++$messages_sent;
-                $timeout_counter = 0;
             } catch (AMQPTimeoutException $e) {
-                ++$timeout_counter;
+                return 0;
+            }
+            while (
+                $this->channel->hasCallbacks()
+                && ($timeout_counter < $maxRetries)
+                && ($messages_sent < $maxItems)
+            ) {
+                try {
+                    $this->channel->wait($defaultTimeout);
+                    ++$messages_sent;
+                    $timeout_counter = 0;
+                } catch (AMQPTimeoutException $e) {
+                    ++$timeout_counter;
+                }
             }
         }
-
         return $messages_sent;
     }
 }
