@@ -8,11 +8,13 @@ if (file_exists(__DIR__.'/security_local.php')) {
     $loader->import('security.php');
 }
 
+/*
 $container->loadFromExtension("framework", array(
     "validation" => array(
         "cache" => "apc"
     )
 ));
+*/
 
 $container->loadFromExtension("doctrine", array(
     "orm" => array(
