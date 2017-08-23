@@ -463,9 +463,9 @@ return [
         'other' => [
             // Session handler
             'session.handler.pdo' => [
-                'class'=> \Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler::class,
+                'class' => \Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler::class,
                 'arguments' => [
-                    '"mysql:host=mysql;port=3306;dbname=mautic"',
+                    '%mautic.pdo_session_string%',
                     ['db_username' => '%mautic.db_user%', 'db_password' => '%mautic.db_password%']
                 ]
             ],
