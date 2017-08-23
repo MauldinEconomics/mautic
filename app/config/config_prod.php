@@ -8,7 +8,6 @@ if (file_exists(__DIR__.'/security_local.php')) {
     $loader->import('security.php');
 }
 
-/*
 $container->loadFromExtension("framework", array(
     "validation" => array(
         "cache" => "apc"
@@ -22,7 +21,6 @@ $container->loadFromExtension("doctrine", array(
         "query_cache_driver"    => "apc"
     )
 ));
-*/
 
 $debugMode = $container->hasParameter('mautic.debug') ? $container->getParameter('mautic.debug') : $container->getParameter('kernel.debug');
 
