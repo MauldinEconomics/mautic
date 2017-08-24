@@ -109,10 +109,8 @@ class FieldType extends AbstractType
                     break;
                 case 'invisiblecaptcha':
                     $addHelpMessage      = $addDefaultValue      = $addIsRequired      = $addLeadFieldList      = $addSaveResult      = $addBehaviorFields      = false;
-                    $labelText           = 'mautic.form.field.form.header';
-                    $showLabelText       = 'mautic.form.field.form.showheader';
-                    $inputAttributesText = 'mautic.form.field.form.invisiblecaptcha_attributes';
-                    $labelAttributesText = 'mautic.form.field.form.header_attributes';
+                    $labelText           = 'mautic.form.field.form.label';
+                    $addShowLabel = $addLabelAttributes = $addInputAttributes = false;
                     // Allow html
                     $cleanMasks['properties'] = 'html';
                     break;
