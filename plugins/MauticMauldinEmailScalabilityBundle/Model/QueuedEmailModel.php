@@ -31,20 +31,21 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     protected $channelHelper;
     protected $notificationModel;
     protected $counter = [];
+    protected $channel = null;
 
     /**
      * Send an email to lead(s).
      *
-     * @param   $email
-     * @param   $leads
-     * @param   $options = array()
-     *                   array source array('model', 'id')
-     *                   array emailSettings
-     *                   int   listId
-     *                   bool  allowResends     If false, exact emails (by id) already sent to the lead will not be resent
-     *                   bool  ignoreDNC        If true, emails listed in the do not contact table will still get the email
-     *                   bool  sendBatchMail    If false, the function will not send batched mail but will defer to calling function to handle it
-     *                   array assetAttachments Array of optional Asset IDs to attach
+     * @param Email $email
+     * @param       $leads
+     * @param       $options = array()
+     *                       array source array('model', 'id')
+     *                       array emailSettings
+     *                       int   listId
+     *                       bool  allowResends     If false, exact emails (by id) already sent to the lead will not be resent
+     *                       bool  ignoreDNC        If true, emails listed in the do not contact table will still get the email
+     *                       bool  sendBatchMail    If false, the function will not send batched mail but will defer to calling function to handle it
+     *                       array assetAttachments Array of optional Asset IDs to attach
      *
      * @return mixed
      *
@@ -396,20 +397,35 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     }
 
     /**
-     * @param int  $emailId
-     * @param null $variantIds
-     * @param null $listIds
-     * @param bool $countOnly
-     * @param null $limit
-     * @param null $lastLead
-     * @param bool $statsOnly
+     * Get channel, retrieving it from the helper if necessary.
+     *
+     * @return QueueChannel
+     */
+    public function getChannel()
+    {
+        if (!$this->channel) {
+            $this->channel = $this->getChannelHelper()->getChannel();
+        }
+
+        return $this->channel;
+    }
+
+    /**
+     * @param Email $emailId
+     * @param null  $variantIds
+     * @param null  $listIds
+     * @param bool  $countOnly
+     * @param null  $limit
+     * @param null  $lastLead
+     * @param bool  $statsOnly
      *
      * @return array|int
      */
-    public function getEmailPendingLeads($emailId, $variantIds = null, $listIds = null, $countOnly = false, $limit = null, $lastLead = null, $statsOnly = false)
+    public function getEmailPendingLeads($email, $variantIds = null, $listIds = null, $countOnly = false, $limit = null, $lastLead = null, $statsOnly = false)
     {
         // Do not include leads in the do not contact table
-        $dncQb = $this->em->getConnection()->createQueryBuilder();
+        $emailId = $email->getId();
+        $dncQb   = $this->em->getConnection()->createQueryBuilder();
         $dncQb->select('null')
             ->from(MAUTIC_TABLE_PREFIX.'lead_donotcontact', 'dnc')
             ->where(
@@ -565,7 +581,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     public function getPendingLeads(Email $email, $listId = null, $countOnly = false, $limit = null, $includeVariants = true, $lastLead = null, $statsOnly = false)
     {
         $variantIds = ($includeVariants) ? $email->getRelatedEntityIds() : null;
-        $total      = $this->getEmailPendingLeads($email->getId(), $variantIds, $listId, $countOnly, $limit, $lastLead, $statsOnly);
+        $total      = $this->getEmailPendingLeads($email, $variantIds, $listId, $countOnly, $limit, $lastLead, $statsOnly);
 
         return $total;
     }
@@ -596,10 +612,11 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         }
     }
 
-    protected function declareQueue($create)
+    protected function declareQueue($email, $create)
     {
+        $name = self::BROADCAST_EMAIL_QUEUE.'-'.$email->getId();
         // Declare the channel's queue with $durable = true
-        $exist = $this->getChannelHelper()->checkQueueExist(self::BROADCAST_EMAIL_QUEUE, true,
+        $exist = $this->getChannelHelper()->checkQueueExist($name, true,
             false,
             true);
 
@@ -609,8 +626,8 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         }
 
         return $this->getChannelHelper()->declareQueue(
-            self::BROADCAST_EMAIL_QUEUE,
-            $this->getChannelHelper()->getChannel(),
+            $name,
+            $this->getChannel(),
             true,
             false,
             true
@@ -637,18 +654,6 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         // Safety check
         if ('list' !== $email->getEmailType()) {
             return [0, 0, []];
-        }
-
-        /* @var QueueReference $queue */
-        if ($limit && $batch) {
-            $queue = $this->declareQueue(true);
-            if ($queue === null) {
-                if ($output) {
-                    $output->writeln("Can't create queue for broadcast");
-                }
-
-                return [0, 0, []];
-            }
         }
 
         $options = [
@@ -715,6 +720,18 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
                 $this->notifyABTestError($lists, $email, $fail);
 
                 return [0, 100, [], $lastLead];
+            }
+        }
+
+        /* @var QueueReference $queue */
+        if ($limit && $batch) {
+            $queue = $this->declareQueue($email, true);
+            if ($queue === null) {
+                if ($output) {
+                    $output->writeln("Can't create queue for broadcast");
+                }
+
+                return [0, 0, []];
             }
         }
 
@@ -830,13 +847,17 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     /**
      * Generate a the rabbitMQ consumer for processing each batch.
      *
+     * @param Email $email
+     *
      * @return QueueReference
      */
-    public function sendEmailToListsConsume()
+    public function sendEmailToListsConsume($email, $output= null)
     {
         /** @var QueueReference $queue */
-        $queue = $this->declareQueue(false);
+        $queue = $this->declareQueue($email, false);
         if ($queue === null) {
+            if($output)
+                $output->writeln('queue does not exist');
             return null;
         }
 

@@ -8,6 +8,7 @@
 
 namespace MauticPlugin\MauticMauldinEmailScalabilityBundle\Command;
 
+use Mautic\EmailBundle\Entity\Email;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueProcessingCommand;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\QueuedEmailModel;
 use Symfony\Component\Console\Input\InputInterface;
@@ -43,13 +44,15 @@ EOT
     {
         $container = $this->getContainer();
         /** @var QueuedEmailModel $emailModel */
-        $emailModel    = $container->get('mautic.email.model.email');
-        $queue         = $emailModel->sendEmailToListsConsume();
-        if ($queue === null) {
-            return 1;
-        }
-        $this->channel = $queue->getChannel();
+        $emailModel = $container->get('mautic.email.model.email');
 
+        /** @var Email $email */
+        $this->channel = $emailModel->getChannel();
+
+        $emails= $emailModel->getRepository()->getPublishedBroadcasts();
+        while (($email = $emails->next()) !== false) {
+            $emailModel->sendEmailToListsConsume($email[0],$output);
+        }
         return 0;
     }
 }
