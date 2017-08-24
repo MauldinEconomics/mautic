@@ -34,7 +34,7 @@
 /mockup
 /upgrade
 /upgrade_errors.txt
-/translations
+!/translations
 /media/images/*
 !/media/images/flags
 !/media/images/apple-touch-icon.png
