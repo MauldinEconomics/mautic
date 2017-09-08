@@ -43,6 +43,25 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
     }
 
     /**
+     * This are not used in production, since we use the Sendgrid API
+     */
+    public function isStarted() {
+        if ($this->mode !== 'sendgrid_api') {
+            return parent::isStarted();
+        }
+        return true;
+    }
+
+    /**
+     * This are not used in production, since we use the Sendgrid API
+     */
+    public function start() {
+        if ($this->mode !== 'sendgrid_api') {
+            return parent::start();
+        }
+    }
+
+    /**
      * Get transport queue.
      *
      * @return TransportQueueInterface
