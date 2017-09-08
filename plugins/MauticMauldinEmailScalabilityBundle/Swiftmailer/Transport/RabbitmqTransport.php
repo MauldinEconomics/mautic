@@ -146,14 +146,7 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
                 $settings->setSandboxMode(['enable' => $this->isSandbox()]);
                 $mail->setMailSettings($settings);
 
-                ini_set('xdebug.var_display_max_depth', 5);
-                ini_set('xdebug.var_display_max_children', 256);
-                ini_set('xdebug.var_display_max_data', 1024);
-                var_dump($mail);
-
                 $response = $sg->client->mail()->send()->post($mail);
-
-                var_dump($response);
 
                 if($response->statusCode() == 200 || $response->statusCode() == 202) {
                     return true;
