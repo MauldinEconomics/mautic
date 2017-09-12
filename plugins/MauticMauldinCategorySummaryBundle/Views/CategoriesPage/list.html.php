@@ -390,17 +390,6 @@ echo $view['translator']->trans(
                         </td>
 
                 <td class="visible-sm visible-md visible-lg col-stats">
-                    <?php $pending = $emailModel->getPendingLeads($item, null, true); ?>
-                    <?php if ($type == 'list' && !empty($pending)): ?>
-                    <span class="mt-xs label label-default"
-                          data-toggle="tooltip"
-                          title="<?php echo $view['translator']->trans('mautic.email.stat.leadcount.tooltip'); ?>">
-<?php echo $view['translator']->trans(
-    'mautic.email.stat.leadcount',
-    ['%count%' => $pending]
-); ?>
-                    </span>
-                    <?php endif; ?>
                     <?php $queued = $emailModel->getQueuedCounts($item); ?>
                     <?php if (!empty($queued)): ?>
                     <span class="mt-xs label label-default"
