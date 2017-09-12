@@ -160,17 +160,6 @@ if ($tmpl == 'index') {
                         </span>
                     </td>
                     <td class="visible-sm visible-md visible-lg col-stats">
-                        <?php $pending = $model->getPendingLeads($item, null, true); ?>
-                        <?php if ($type == 'list' && !empty($pending)): ?>
-                        <span class="mt-xs label label-default"
-                              data-toggle="tooltip"
-                              title="<?php echo $view['translator']->trans('mautic.email.stat.leadcount.tooltip'); ?>">
-                            <?php echo $view['translator']->trans(
-                                'mautic.email.stat.leadcount',
-                                ['%count%' => $pending]
-                            ); ?>
-                        </span>
-                        <?php endif; ?>
                         <?php $queued = $model->getQueuedCounts($item); ?>
                         <?php if (!empty($queued)): ?>
                         <span class="mt-xs label label-default"
