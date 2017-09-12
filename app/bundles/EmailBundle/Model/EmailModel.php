@@ -623,22 +623,16 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
 
             foreach ($lists as $l) {
                 $sentCount = isset($sentCounts[$l->getId()]) ? $sentCounts[$l->getId()] : 0;
-                $combined[0] += $sentCount;
 
                 $readCount = isset($readCounts[$l->getId()]) ? $readCounts[$l->getId()] : 0;
-                $combined[1] += $readCount;
 
                 $failedCount = isset($failedCounts[$l->getId()]) ? $failedCounts[$l->getId()] : 0;
-                $combined[2] += $failedCount;
 
                 $clickCount = isset($clickCounts[$l->getId()]) ? $clickCounts[$l->getId()] : 0;
-                $combined[3] += $clickCount;
 
                 $unsubscribedCount = isset($unsubscribedCounts[$l->getId()]) ? $unsubscribedCounts[$l->getId()] : 0;
-                $combined[4] += $unsubscribedCount;
 
                 $bouncedCount = isset($bouncedCounts[$l->getId()]) ? $bouncedCounts[$l->getId()] : 0;
-                $combined[5] += $bouncedCount;
 
                 $chart->setDataset(
                     $l->getName(),
@@ -658,6 +652,21 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         }
 
         if ($listCount > 1) {
+
+            $sentCount         = $statRepo->getSentCount($emailIds, false, $query);
+            $readCount         = $statRepo->getReadCount($emailIds, false, $query);
+            $failedCount       = $statRepo->getFailedCount($emailIds, false, $query);
+            $clickCount        = $trackableRepo->getCount('email', $emailIds, false, $query);
+            $unsubscribedCount = $dncRepo->getCount('email', $emailIds, DoNotContact::UNSUBSCRIBED, false, $query);
+            $bouncedCount      = $dncRepo->getCount('email', $emailIds, DoNotContact::BOUNCED, false, $query);
+
+            $combined[0] = isset($sentCount) ? $sentCount : 0;
+            $combined[1] = isset($readCount) ? $readCount : 0;
+            $combined[2] = isset($failedCount) ? $failedCount : 0;
+            $combined[3] = isset($clickCount) ? $clickCount : 0;
+            $combined[4] = isset($unsubscribedCount) ? $unsubscribedCount : 0;
+            $combined[5] = isset($bouncedCount) ? $bouncedCount : 0;
+
             $chart->setDataset(
                 $this->translator->trans('mautic.email.lists.combined'),
                 $combined,
@@ -1781,8 +1790,9 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
 
             if (isset($filter['email_id'])) {
                 if (is_array($filter['email_id'])) {
-                    $q->andWhere('cut.channel_id IN(:channel_id)');
-                    $q->setParameter('channel_id', implode(',', $filter['email_id']));
+                    $q->andWhere(
+                        $q->expr()->in('cut.channel_id', $filter['email_id'])
+                    );
                 } else {
                     $q->andWhere('cut.channel_id = :channel_id');
                     $q->setParameter('channel_id', $filter['email_id']);
