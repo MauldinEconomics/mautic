@@ -54,7 +54,7 @@ class CleanFormSubscriber implements EventSubscriberInterface
         $data = $event->getData();
 
         // clean the data unless in "code mode"
-        if ('mautic_code_mode' !== $data['template']) {
+        if (!(isset($data['template']) && 'mautic_code_mode' === $data['template'])) {
             $data = InputHelper::_($data, $this->masks);
         }
 
