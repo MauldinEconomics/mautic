@@ -163,15 +163,6 @@ if ($tmpl == 'index') {
                     <td class="visible-sm visible-md visible-lg col-stats" data-stats="<?php echo $item->getId(); ?>">
                         <?php echo $view['content']->getCustomContent('email.stats.above', $mauticTemplateVars); ?>
                         <span class="mt-xs label label-default hide has-click-event clickable-stat"
-                              id="pending-<?php echo $item->getId(); ?>"
-                              data-toggle="tooltip"
-                              title="<?php echo $view['translator']->trans('mautic.email.stat.leadcount.tooltip'); ?>">
-                            <a href="<?php echo $view['router']->path(
-                                'mautic_contact_index',
-                                ['search' => $view['translator']->trans('mautic.lead.lead.searchcommand.email_pending').':'.$item->getId()]
-                            ); ?>"></a>
-                        </span>
-                        <span class="mt-xs label label-default hide has-click-event clickable-stat"
                               id="queued-<?php echo $item->getId(); ?>"
                               data-toggle="tooltip"
                               title="<?php echo $view['translator']->trans('mautic.email.stat.queued.tooltip'); ?>">
