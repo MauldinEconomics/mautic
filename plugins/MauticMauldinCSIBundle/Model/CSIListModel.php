@@ -12,7 +12,7 @@ use Mautic\LeadBundle\Model\ListModel;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
 use PhpAmqpLib\Message\AMQPMessage;
 
-class CSIModel
+class CSIListModel
 {
     private $channelHelper;
     private $queue = null;
@@ -35,22 +35,32 @@ class CSIModel
 
     public function addToList(Lead $lead, array $addTo)
     {
+        $addIfNotNull = function (& $array, $tag) use ($lead) {
+            $v = $lead->getFieldValue($tag);
+            if ($v) {
+                $array[$tag] = $v;
+            }
+        };
 
         foreach ($addTo as $id) {
-            $message['add']['lead'] = $lead->getEmail();
-            $message['add']['list'] = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
-            $msg                    = new AMQPMessage(serialize($message));
-            $this->getQueue()->publish($msg);
+            $message['add']['email'] = $lead->getEmail();
+            $message['add']['code']  = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
+
+            $addIfNotNull($message['add'], 'session_tracking_id');
+            $addIfNotNull($message['add'], 'client_tracking_id');
+            $addIfNotNull($message['add'], 'user_tracking_id');
+
+            $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }
     }
 
     public function removeFromList(Lead $lead, array $removeFrom)
     {
         foreach ($removeFrom as $id) {
-            $message['remove']['lead'] = $lead->getEmail();
-            $message['remove']['list'] = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
-            $msg                       = new AMQPMessage(serialize($message));
-            $this->getQueue()->publish($msg);
+            $message['remove']['email'] = $lead->getEmail();
+            $message['remove']['code']  = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
+
+            $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }
     }
 }

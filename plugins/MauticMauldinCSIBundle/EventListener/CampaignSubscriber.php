@@ -14,7 +14,7 @@ use Mautic\CampaignBundle\Event\CampaignExecutionEvent;
 use Mautic\CampaignBundle\Model\EventModel;
 use Mautic\CoreBundle\EventListener\CommonSubscriber;
 use MauticPlugin\MauticMauldinCSIBundle\CSIEvents;
-use MauticPlugin\MauticMauldinCSIBundle\Model\CSIModel;
+use MauticPlugin\MauticMauldinCSIBundle\Model\CSIListModel;
 
 /**
  * Class CampaignSubscriber.
@@ -29,16 +29,16 @@ class CampaignSubscriber extends CommonSubscriber
     /**
      * @var EventModel
      */
-    protected $csiModel;
+    protected $csiListModel;
 
     /**
      * CampaignSubscriber constructor.
      *
      * @param EventModel $eventModel
      */
-    public function __construct(CSIModel $csiModel)
+    public function __construct(CSIListModel $csiListModel)
     {
-        $this->csiModel = $csiModel;
+        $this->csiListModel = $csiListModel;
     }
 
     /**
@@ -84,12 +84,12 @@ class CampaignSubscriber extends CommonSubscriber
         $somethingHappened = false;
 
         if (!empty($addTo)) {
-            $this->csiModel->addToList($lead, $addTo);
+            $this->csiListModel->addToList($lead, $addTo);
             $somethingHappened = true;
         }
 
         if (!empty($removeFrom)) {
-            $this->csiModel->removeFromList($lead, $removeFrom);
+            $this->csiListModel->removeFromList($lead, $removeFrom);
             $somethingHappened = true;
         }
 

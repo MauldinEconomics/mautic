@@ -25,4 +25,6 @@ final class CSIEvents
     const ON_CAMPAIGN_TRIGGER_ACTION = 'mauldin.csi.on_campaign_trigger_decision';
 
     const ON_MODIFY_CSI_LIST = 'mauldin.csi.on_modify_csi_list';
+
+    const ON_SEND_SURVEY_TO_CSI = 'mauldin.csi.on_send_survey_to_csi';
 }
