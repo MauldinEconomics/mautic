@@ -17,19 +17,42 @@ return [
             'mauldin.csi.campaignbundle.subscriber' => [
                 'class'     => 'MauticPlugin\MauticMauldinCSIBundle\EventListener\CampaignSubscriber',
                 'arguments' => [
-                    'mautic.mauldin.csi.csi',
+                    'mautic.mauldin.csi.list',
                 ],
             ],
             'mauldin.csi.formbundle.subscriber' => [
                 'class'     => 'MauticPlugin\MauticMauldinCSIBundle\EventListener\FormSubscriber',
                 'arguments' => [
-                    'mautic.mauldin.csi.csi',
+                    'mautic.mauldin.csi.list',
+                ],
+            ],
+            'mauldin.csi.formbundle.survey_subscriber' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\EventListener\SurveyFormSubscriber',
+                'arguments' => [
+                    'mautic.mauldin.csi.survey',
                 ],
             ],
         ],
         'model' => [
-            'mautic.mauldin.csi.csi' => [
-                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSIModel',
+            'mautic.mauldin.csi.request' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSIRequestModel',
+                'arguments' => [
+                    '%mautic.csiapi_username%',
+                    '%mautic.csiapi_password%',
+                    '%mautic.csiapi_key%',
+                    '%mautic.csiapi_entity_code%',
+                    '%mautic.csiapi_host%',
+                ],
+            ],
+            'mautic.mauldin.csi.list' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSIListModel',
+                'arguments' => [
+                    'mautic.lead.model.list',
+                    'mauldin.scalability.message_queue.channel_helper',
+                ],
+            ],
+            'mautic.mauldin.csi.survey' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSISurveyModel',
                 'arguments' => [
                     'mautic.lead.model.list',
                     'mauldin.scalability.message_queue.channel_helper',
@@ -45,6 +68,14 @@ return [
             'mautic.form.type.csilist_action' => [
                 'class' => 'MauticPlugin\MauticMauldinCSIBundle\Form\Type\CSIListActionType',
                 'alias' => 'csilist_action',
+            ],
+            'mautic.form.type.csisurvey_action' => [
+                'class' => 'MauticPlugin\MauticMauldinCSIBundle\Form\Type\CSISurveyActionType',
+                'alias' => 'csisurvey_action',
+                'methodCalls' => [
+                    'setFieldModel' => ['mautic.form.model.field'],
+                    'setFormModel'  => ['mautic.form.model.form'],
+                ],
             ],
         ],
 

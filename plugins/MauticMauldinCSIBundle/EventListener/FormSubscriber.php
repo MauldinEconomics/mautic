@@ -14,7 +14,7 @@ use Mautic\FormBundle\Event\FormBuilderEvent;
 use Mautic\FormBundle\Event\SubmissionEvent;
 use Mautic\FormBundle\FormEvents;
 use MauticPlugin\MauticMauldinCSIBundle\CSIEvents;
-use MauticPlugin\MauticMauldinCSIBundle\Model\CSIModel;
+use MauticPlugin\MauticMauldinCSIBundle\Model\CSIListModel;
 
 /**
  * Class FormSubscriber.
@@ -24,16 +24,16 @@ class FormSubscriber extends CommonSubscriber
     /**
      * @var EmailModel
      */
-    protected $csiModel;
+    protected $csiListModel;
 
     /**
      * FormSubscriber constructor.
      *
      * @param EmailModel $emailModel
      */
-    public function __construct(CSIModel $csiModel)
+    public function __construct(CSIListModel $csiListModel)
     {
-        $this->csiModel = $csiModel;
+        $this->csiListModel = $csiListModel;
     }
 
     /**
@@ -81,11 +81,11 @@ class FormSubscriber extends CommonSubscriber
         $removeFrom = $properties['removeFromLists'];
 
         if (!empty($addTo)) {
-            $this->csiModel->addToList($lead, $addTo);
+            $this->csiListModel->addToList($lead, $addTo);
         }
 
         if (!empty($removeFrom)) {
-            $this->csiModel->removeFromList($lead, $removeFrom);
+            $this->csiListModel->removeFromList($lead, $removeFrom);
         }
     }
 }
