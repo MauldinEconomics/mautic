@@ -31,6 +31,8 @@ trait VariantModelTrait
      */
     public function convertVariant(VariantEntityInterface $entity)
     {
+        $this->recordAbResult($entity);
+
         //let saveEntities() know it does not need to set variant start dates
         $this->inConversion = true;
 
@@ -78,13 +80,58 @@ trait VariantModelTrait
 
         //save the entities
         foreach($save as $entity) {
-            if (method_exists($entity, 'setVariantSentCount')) {
-                $entity->setVariantSentCount(0);
-            }
-            $entity->setVariantStartDate(null);
             $this->saveEntity($entity, false);
         }
 
+    }
+
+    private function recordAbResult($entity)
+    {
+        $abResults = $this->getWinnerVariant($entity);
+
+        $conn = $this->em->getConnection();
+
+        $q = <<<EOQ
+INSERT INTO
+        ab_test_result (entity_id, entity_type, result)
+    VALUES
+        (:id, :type, :value)
+EOQ;
+
+        $stmt = $conn->prepare($q);
+        $stmt->bindValue('id', $entity->getId());
+        $stmt->bindValue('type', (new \ReflectionClass($entity))->getShortName());
+        $stmt->bindValue('value', json_encode($abResults));
+        $stmt->execute();
+    }
+
+    public function getRecordedAbResult($entity)
+    {
+        $conn = $this->em->getConnection();
+
+        $q = <<<EOQ
+SELECT
+        result
+    FROM
+        ab_test_result AS r
+    WHERE
+        r.entity_id = :id
+            AND
+        r.entity_type = :type
+EOQ;
+
+        $stmt = $conn->prepare($q);
+        $stmt->bindValue('id', $entity->getId());
+        $stmt->bindValue('type', (new \ReflectionClass($entity))->getShortName());
+        $stmt->execute();
+        $row = $stmt->fetch();
+
+        if (!empty($row)) {
+            $result = json_decode($row['result'], true);
+            $result['isRecorded'] = true;
+            return $result;
+        }
+        return null;
     }
 
     /**

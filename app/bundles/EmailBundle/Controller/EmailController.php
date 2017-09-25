@@ -454,7 +454,7 @@ class EmailController extends FormController
                         ],
                         'RETURN_ARRAY'
                     ),
-                    'abTestResults' => $abTestResults,
+                    'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($email) : $abTestResults,
                     'security'      => $security,
                     'previewUrl'    => $this->generateUrl(
                         'mautic_email_preview',
