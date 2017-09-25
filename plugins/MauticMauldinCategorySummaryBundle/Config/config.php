@@ -10,7 +10,7 @@ return [
     'routes' => [
         'main' => [
             'mautic_category_summary_index' => [
-                'path' => '/category-summary',
+                'path' => '/category/items/{page}',
                 'controller' => 'MauticMauldinCategorySummaryBundle:Default:index',
             ],
         ],
@@ -18,8 +18,8 @@ return [
     'menu' => [
         'main' => [
             'mautic.categorySummary.menu.index' => [
-                'route' => 'mautic_category_summary_index',
-                'iconClass' => 'fa-eercast',
+                'route' => 'mautic_category_index',
+                'iconClass' => 'fa-folder',
                 'priority' => -1,
             ],
         ],

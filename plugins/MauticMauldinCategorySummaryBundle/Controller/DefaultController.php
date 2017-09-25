@@ -13,7 +13,7 @@ use Mautic\CoreBundle\Helper\InputHelper;
 
 class DefaultController extends AbstractStandardFormController {
 
-    public function indexAction($page = 1) {
+    public function indexAction($page = 0) {
         // check for permission errors
         $validation = $this->checkForPermissionError();
         if ($validation["status"] === "error") {
@@ -22,7 +22,17 @@ class DefaultController extends AbstractStandardFormController {
         $permissions = $validation["perm"];
 
         $session = $this->get('session');
-        list($filter, $uiFilterSettings) = $this->getCommonFilter($session);
+        $this->processUiFilterSettings($session);
+
+        // category filter
+        $filter = [
+            'string' => '',
+            'force' => [],
+        ];
+
+        if (0 !== $page) {
+            $filter['force'][] = ['column' => 'c.id', 'expr' => 'eq', 'value' => $page];
+        }
 
         list($emailItems, $emailModel) = $this->getEmailItems($filter, $session, $permissions);
         $landingPageItems = $this->getLandingPageItems($filter, $session, $permissions);
@@ -32,7 +42,6 @@ class DefaultController extends AbstractStandardFormController {
 
         return $this->delegateView([
             'viewParameters' => [
-                'filters' => $uiFilterSettings,
                 'tmpl' => $this->request->get('tmpl', 'index'),
                 'permissions' => $permissions,
                 'emailItems' => $emailItems,
@@ -41,18 +50,13 @@ class DefaultController extends AbstractStandardFormController {
                 'formItems' => $formItems,
                 'pageItems' => $landingPageItems,
                 'assetItems' => $assetItems,
+                'page' => $page,
             ],
             'contentTemplate' => 'MauticMauldinCategorySummaryBundle:CategoriesPage:list.html.php',
         ]);
     }
 
-    protected function getCommonFilter($session) {
-        /**
-         * Return query and UI filter settings that are shared by all Entities
-         * (email, landing pages, ...).
-         * The common filter may have to be extended before being applied as a
-         * database query.
-         */
+    protected function processUiFilterSettings($session) {
         if ($this->request->getMethod() == 'POST') {
             $name = $this->request->get("name", "");
             $dir = "";
@@ -94,53 +98,14 @@ class DefaultController extends AbstractStandardFormController {
                 }
             }
         }
-
-        // used as filter on database query
-        $filter = [
-            'string' => '',
-            'force' => [],
-        ];
-
-        // required to render categories filter gui on UI
-        $listFilters = [
-            'filters' => [
-                'placeholder' => $this->get('translator')->trans('mautic.categorySummary.filter.placeholder'),
-                'multiple' => true,
-                'groups' => [
-                    'mautic.categorySummary.filter.categories' => [
-                        'options' => $this->getAllCategories(),
-                        'prefix' => 'category',
-                    ],
-                ],
-            ],
-        ];
-
-        // parses list of categories selected on UI
-        $categoriesFilter = $session->get('mautic.categoriesSummary.categoriesFilter', []);
-        $updatedFilters = $this->request->get('filters', false);
-        if ($updatedFilters) {
-            $newFilter = [];
-            $updatedFilters = json_decode($updatedFilters, true);
-            if ($updatedFilters) {
-                foreach ($updatedFilters as $entry) {
-                    list($column, $value) = explode(':', $entry);
-                    $newFilter[] = $value;
-                }
-            }
-            $categoriesFilter = $newFilter;
-        }
-        $session->set('mautic.categoriesSummary.categoriesFilter', $categoriesFilter);
-
-        // in case of categories filter, add them to both db and UI filter settings
-        if (!empty($categoriesFilter)) {
-            $listFilters['filters']['groups']['mautic.categorySummary.filter.categories']['values'] = $categoriesFilter;
-            $filter['force'][] = ['column' => 'c.id', 'expr' => 'in', 'value' => $categoriesFilter];
-        }
-
-        return array($filter, $listFilters);
     }
 
     protected function getCampaignItems($filter, $session, $permissions) {
+        // fix categories table alias
+        if (! empty($filter['force'])) {
+            $filter['force'][0]['column'] = 'cat.id';
+        }
+
         if (!$permissions['campaign:campaigns:viewother']) {
             $filter['force'][] = ['column' => 'e.createdBy', 'expr' => 'eq', 'value' => $this->user->getId()];
         }
@@ -269,16 +234,6 @@ class DefaultController extends AbstractStandardFormController {
         }
 
         return ["status" => "ok", "perm" => $permissions];
-    }
-
-    protected function getAllCategories() {
-        $model = $this->getModel('category');
-        $categories = $model->getEntities();
-        $choices = [];
-        foreach ($categories as $l) {
-            $choices[$l->getId()] = $l->getTitle();
-        }
-        return $choices;
     }
 
 }
