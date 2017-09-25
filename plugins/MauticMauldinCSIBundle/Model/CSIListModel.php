@@ -18,6 +18,9 @@ class CSIListModel
     private $queue = null;
     private $listModel;
 
+    const COOKIES_NAMES = ['client_tracking_id', 'session_tracking_id', 'user_tracking_id'];
+    const COOKIES_PREFIX = 'exp_';
+
     const CSI_LIST_QUEUE = 'csi_list';
 
     public function __construct(ListModel $listModel, ChannelHelper $channelHelper)
@@ -46,9 +49,9 @@ class CSIListModel
             $message['add']['email'] = $lead->getEmail();
             $message['add']['code']  = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
 
-            $addIfNotNull($message['add'], 'session_tracking_id');
-            $addIfNotNull($message['add'], 'client_tracking_id');
-            $addIfNotNull($message['add'], 'user_tracking_id');
+            foreach (self::COOKIES_NAMES as $name){
+                $addIfNotNull($message['add'], $name);
+            }
 
             $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }

@@ -23,6 +23,7 @@ return [
             'mauldin.csi.formbundle.subscriber' => [
                 'class'     => 'MauticPlugin\MauticMauldinCSIBundle\EventListener\FormSubscriber',
                 'arguments' => [
+                    'mautic.lead.model.lead',
                     'mautic.mauldin.csi.list',
                 ],
             ],

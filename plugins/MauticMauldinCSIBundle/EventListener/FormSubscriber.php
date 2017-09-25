@@ -9,10 +9,11 @@
 namespace MauticPlugin\MauticMauldinCSIBundle\EventListener;
 
 use Mautic\CoreBundle\EventListener\CommonSubscriber;
-use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\FormBundle\Event\FormBuilderEvent;
 use Mautic\FormBundle\Event\SubmissionEvent;
 use Mautic\FormBundle\FormEvents;
+use Mautic\LeadBundle\Entity\Lead;
+use Mautic\LeadBundle\Model\LeadModel;
 use MauticPlugin\MauticMauldinCSIBundle\CSIEvents;
 use MauticPlugin\MauticMauldinCSIBundle\Model\CSIListModel;
 
@@ -22,17 +23,21 @@ use MauticPlugin\MauticMauldinCSIBundle\Model\CSIListModel;
 class FormSubscriber extends CommonSubscriber
 {
     /**
-     * @var EmailModel
+     * @var LeadModel
+     */
+    protected $leadModel;
+
+    /**
+     * @var CSIListModel
      */
     protected $csiListModel;
 
     /**
      * FormSubscriber constructor.
-     *
-     * @param EmailModel $emailModel
      */
-    public function __construct(CSIListModel $csiListModel)
+    public function __construct(LeadModel $leadModel, CSIListModel $csiListModel)
     {
+        $this->leadModel    = $leadModel;
         $this->csiListModel = $csiListModel;
     }
 
@@ -43,6 +48,7 @@ class FormSubscriber extends CommonSubscriber
     {
         return [
             FormEvents::FORM_ON_BUILD     => ['onFormBuilder', 0],
+            FormEvents::FORM_ON_SUBMIT    => ['onFormSubmit', 0],
             CSIEvents::ON_MODIFY_CSI_LIST => ['onChangeLists', 0],
         ];
     }
@@ -54,7 +60,6 @@ class FormSubscriber extends CommonSubscriber
      */
     public function onFormBuilder(FormBuilderEvent $event)
     {
-
         //add to lead list
         $action = [
             'group'             => 'mautic.lead.lead.submitaction',
@@ -68,6 +73,9 @@ class FormSubscriber extends CommonSubscriber
     }
 
     /**
+     * Callback: queue the action for adding or removing from a CSI list.
+     * Also handles FoF.
+     *
      * @param $action
      * @param $factory
      */
@@ -75,17 +83,67 @@ class FormSubscriber extends CommonSubscriber
     {
         $properties = $event->getActionConfig();
 
-        /** @var \Mautic\LeadBundle\Model\LeadModel $leadModel */
+        /** @var \Mautic\LeadBundle\Model\Lead $lead */
         $lead       = $event->getLead();
         $addTo      = $properties['addToLists'];
         $removeFrom = $properties['removeFromLists'];
 
         if (!empty($addTo)) {
+            /*
+             * Gets the FoF cookie. This is required because the other callback
+             * is always executed after this one, so the new lead does not have
+             * the FoF cookies set yet.
+             */
+            if ($lead->isNewlyCreated())
+            {
+                $this->setLeadFoFCookievalues($lead, $event->getRequest()->cookies);
+            }
+
             $this->csiListModel->addToList($lead, $addTo);
         }
 
         if (!empty($removeFrom)) {
             $this->csiListModel->removeFromList($lead, $removeFrom);
         }
+    }
+
+    /**
+     * Callback: sets the FoF lead custom fields values if the corresponding
+     * cookies exist.
+     *
+     * This is required so that any form submission which creates a lead
+     * also set its FoF cookies.
+     */
+    public function onFormSubmit(SubmissionEvent $event)
+    {
+        /** @var \Mautic\LeadBundle\Entity\Lead $lead */
+        $lead = $event->getLead();
+        if ($lead->isNewlyCreated())
+        {
+            $this->setLeadFoFCookieValues($lead, $event->getRequest()->cookies);
+        }
+
+    }
+
+    /**
+     * Sets the FoF lead custom fields values if the corresponding cookies
+     * exist. Should only be used if the Lead 'is newly created.
+     *
+     * @param Lead $lead
+     * @param      $cookies
+     */
+    private function setLeadFoFCookieValues(Lead $lead, $cookies)
+    {
+        $prefix = CsiListModel::COOKIES_PREFIX;
+
+        $values = [];
+        foreach (CsiListModel::COOKIES_NAMES as $name){
+            if ($cookies->has($prefix . $name)) {
+                $values[$name] = $cookies->get($prefix . $name);
+            }
+        }
+
+        $this->leadModel->setFieldValues($lead, $values, false, false, false);
+        $this->leadModel->saveEntity($lead);
     }
 }
