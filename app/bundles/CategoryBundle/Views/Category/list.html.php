@@ -47,6 +47,15 @@ if ($tmpl == 'index') {
                     'MauticCoreBundle:Helper:tableheader.html.php',
                     [
                         'sessionVar' => 'category',
+                        'text'       => '',
+                        'class'      => 'col-category-color',
+                    ]
+                );
+
+                echo $view->render(
+                    'MauticCoreBundle:Helper:tableheader.html.php',
+                    [
+                        'sessionVar' => 'category',
                         'orderBy'    => 'c.title',
                         'text'       => 'mautic.core.title',
                         'class'      => 'col-category-title',
@@ -110,6 +119,14 @@ if ($tmpl == 'index') {
                     </td>
                     <td>
                         <span class="label label-default pa-10" style="background: #<?php echo $item->getColor(); ?>;"> </span>
+                    </td>
+                    <td>
+                        <a href="<?php echo $view['router']->path(
+                            'mautic_category_summary_index',
+                            ['page' => $item->getId()]
+                        ); ?>" data-header="<?php echo $title; ?>">
+                            <span class="icon fa fa-th-large"></span>
+                        </a>
                     </td>
                     <td>
                         <div>
