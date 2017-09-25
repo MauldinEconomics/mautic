@@ -32,6 +32,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     protected $notificationModel;
     protected $counter = [];
     protected $channel = null;
+    private $transaction = null;
 
     /**
      * Send an email to lead(s).
