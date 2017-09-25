@@ -121,6 +121,22 @@ $view['slots']->set(
                         <table class="table table-bordered table-striped mb-0">
                             <tbody>
                             <?php echo $view->render('MauticCoreBundle:Helper:details.html.php', ['entity' => $activePage]); ?>
+                            <tr>
+                                <td width="20%">
+                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.page.stat.page_hits'); ?></span>
+                                </td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $activePage->getUniqueHits() - $activePage->getVariantHits();
+                                        echo $view['translator']->trans('mautic.page.stat.before_rollout',
+                                            ['%count%' => $activePage->getVariantHits()]
+                                        );
+                                        echo ' / ' . $activePage->getHits();
+                                    } else {
+                                        echo $activePage->getUniqueHits() . ' / ' . $activePage->getHits();
+                                    } ?>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
