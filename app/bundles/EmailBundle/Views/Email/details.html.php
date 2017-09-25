@@ -194,25 +194,43 @@ if (!$isEmbedded) {
                                 </tr>
                             <?php endif; ?>
 
-                            <?php if (!empty($pending)): ?>
+                            <?php if (!empty($pending) && $email->isPublished()): ?>
                                 <tr>
                                     <td width="20%">
-                                        <span class="fw-b"><?php echo $view['translator']->trans('Pending'); ?></span>
+                                        <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.pending_count'); ?></span>
                                     </td>
                                     <td><?php echo $pending; ?></td>
                                 </tr>
                             <?php endif; ?>
                             <tr>
                                 <td width="20%">
-                                    <span class="fw-b"><?php echo $view['translator']->trans('Sent'); ?></span>
+                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.sent_count'); ?></span>
                                 </td>
-                                <td><?php echo $email->getSentCount(); ?></td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $email->getSentCount() - $email->getVariantSentCount();
+                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
+                                            ['%count%' => $email->getVariantSentCount()]
+                                        );
+                                    } else {
+                                        echo $email->getSentCount();
+                                    } ?>
+                                </td>
                             </tr>
                             <tr>
                                 <td width="20%">
-                                    <span class="fw-b"><?php echo $view['translator']->trans('Read'); ?></span>
+                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.read_count'); ?></span>
                                 </td>
-                                <td><?php echo $email->getReadCount(); ?></td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $email->getReadCount() - $email->getVariantReadCount();
+                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
+                                            ['%count%' => $email->getVariantReadCount()]
+                                        );
+                                    } else {
+                                        echo $email->getReadCount();
+                                    } ?>
+                                </td>
                             </tr>
 
                             </tbody>
