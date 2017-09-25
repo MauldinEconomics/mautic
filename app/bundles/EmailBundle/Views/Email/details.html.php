@@ -194,7 +194,7 @@ if (!$isEmbedded) {
                                 </tr>
                             <?php endif; ?>
 
-                            <?php if (!empty($pending)): ?>
+                            <?php if (!empty($pending) && $email->isPublished()): ?>
                                 <tr>
                                     <td width="20%">
                                         <span class="fw-b"><?php echo $view['translator']->trans('Pending'); ?></span>
@@ -206,13 +206,27 @@ if (!$isEmbedded) {
                                 <td width="20%">
                                     <span class="fw-b"><?php echo $view['translator']->trans('Sent'); ?></span>
                                 </td>
-                                <td><?php echo $email->getSentCount(); ?></td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $email->getSentCount() - $email->getVariantSentCount();
+                                        echo ' (' . $email->getVariantSentCount() . ' before roll-out)';
+                                    } else {
+                                        echo $email->getSentCount();
+                                    } ?>
+                                </td>
                             </tr>
                             <tr>
                                 <td width="20%">
                                     <span class="fw-b"><?php echo $view['translator']->trans('Read'); ?></span>
                                 </td>
-                                <td><?php echo $email->getReadCount(); ?></td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $email->getReadCount() - $email->getVariantReadCount();
+                                        echo ' (' . $email->getVariantReadCount() . ' before roll-out)';
+                                    } else {
+                                        echo $email->getReadCount();
+                                    } ?>
+                                </td>
                             </tr>
 
                             </tbody>
