@@ -225,11 +225,7 @@ return [
                 'alias' => 'formfield_invisiblecaptcha',
                 'arguments' => ['%mautic.invisiblecaptcha.client_key%']
             ],
-            'mautic.form.type.field_propertycookies' => [
-                'class' => 'Mautic\FormBundle\Form\Type\FormFieldCookiesType',
-                'alias' => 'formfield_cookies',
-            ],
-            'mautic.form.type.field_propertypagebreak' => [
+            'muatic.form.type.field_propertypagebreak' => [
                 'class'     => \Mautic\FormBundle\Form\Type\FormFieldPageBreakType::class,
                 'arguments' => [
                     'translator',

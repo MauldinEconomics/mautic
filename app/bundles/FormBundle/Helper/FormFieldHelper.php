@@ -52,7 +52,6 @@ class FormFieldHelper extends AbstractFormFieldHelper
                 Blank::class => ['message' => 'mautic.form.submission.captcha.invalid'],
             ],
         ],
-        'cookies' => [],
         'invisiblecaptcha' => [/*constraint implemented as custom code*/],
         'checkboxgrp' => [],
         'country'     => [],
