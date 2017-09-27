@@ -22,7 +22,7 @@ class FetchSetListCommand extends ModeratedCommand
      */
     protected function configure()
     {
-        $this->setName('mauldin:set:fetch')
+        $this->setName('mauldin:set:lists:fetch')
             ->setDescription('Fetches the remote cache and update the local cache for each SET list');
         parent::configure();
     }
@@ -37,7 +37,10 @@ class FetchSetListCommand extends ModeratedCommand
         $listIds = $setList->getUpdatableLists();
 
         foreach ($listIds as $listId) {
-            $setList->maybeUpdateCache($listId);
+            $flag = $setList->maybeUpdateCache($listId);
+            if ($flag) {
+                $output->writeln('Updated local cache of SET list ' . $listId);
+            }
         }
     }
 }
