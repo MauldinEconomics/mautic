@@ -18,6 +18,18 @@ return [
                 'class'     => 'MauticPlugin\MauticMauldinFiltersBundle\EventListener\LeadSubscriber',
                 'arguments' => [
                     'mautic.lead.model.list',
+                    'mautic.mauldin.set.request',
+                ],
+            ],
+        ],
+        'model' => [
+            'mautic.mauldin.set.request' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\SETRequestModel',
+                'arguments' => [
+                    '%mautic.setapi_entity_code%',
+                    '%mautic.setapi_host%',
+                    '%mautic.setapi_private_key%',
+                    '%mautic.setapi_user_guid%',
                 ],
             ],
         ],

@@ -15,6 +15,7 @@ use Mautic\LeadBundle\Event\LeadListFiltersChoicesEvent;
 use Mautic\LeadBundle\LeadEvents;
 use Mautic\LeadBundle\Model\ListModel;
 use MauticPlugin\MauticMauldinFiltersBundle\ClickEvents;
+use MauticPlugin\MauticMauldinCSIBundle\Model\SETRequestModel;
 
 /**
  * Class CampaignSubscriber.
@@ -26,14 +27,17 @@ class LeadSubscriber extends CommonSubscriber
      */
     protected $listModel;
 
+    protected $setRequestModel;
+
     /**
      * CampaignSubscriber constructor.
      *
      * @param EventModel $eventModel
      */
-    public function __construct(ListModel $listModel)
+    public function __construct(ListModel $listModel, SETRequestModel $setRequestModel)
     {
         $this->listModel = $listModel;
+        $this->setRequestModel = $setRequestModel;
     }
 
     /**
@@ -63,6 +67,17 @@ class LeadSubscriber extends CommonSubscriber
             [   'label'      => $this->translator->trans('mauldin.lead.list.filter.lead_asset_download'),
                 'properties' => [
                     'type' => 'assets',
+                ],
+                'operators' => $this->listModel->getOperatorsForFieldType('multiselect'),
+            ]);
+
+        $event->addChoice(
+            'lead',
+            'lead_set_list_membership',
+            [   'label'      => $this->translator->trans('mauldin.lead.list.filter.lead_set_list_membership'),
+                'properties' => [
+                    'type' => 'select',
+                    'list' => $this->setRequestModel->getSetLists(),
                 ],
                 'operators' => $this->listModel->getOperatorsForFieldType('multiselect'),
             ]);
@@ -110,6 +125,41 @@ class LeadSubscriber extends CommonSubscriber
 
                 $table  = 'asset_downloads';
                 $column = 'asset_id';
+
+                $subExpr->add(
+                    $subQb->expr()->in(sprintf('%s.%s', $alias, $column), $details['filter'])
+                );
+
+                $subQb->select('null')
+                    ->from(MAUTIC_TABLE_PREFIX.$table, $alias)
+                    ->where($subExpr);
+
+                $event->setSubQuery(sprintf('%s (%s)', $func, $subQb->getSQL()));
+                $event->setFilteringStatus(true);
+                break;
+
+            case 'lead_set_list_membership':
+                $alias = $this->generateRandomParameterName();
+                $func = in_array($func, ['eq', 'in']) ? 'EXISTS' : 'NOT EXISTS';
+
+                foreach ($details['filter'] as &$value) {
+                    $value = (int) $value;
+                }
+
+                $subQb   = $em->getConnection()->createQueryBuilder();
+                $subExpr = $subQb->expr()->andX(
+                    $subQb->expr()->eq($alias.'.lead_id', 'l.id')
+                );
+
+                // Specific lead
+                if (!empty($leadId)) {
+                    $subExpr->add(
+                        $subQb->expr()->eq($alias.'.lead_id', $leadId)
+                    );
+                }
+
+                $table  = 'setlists_leads';
+                $column = 'setlist_id';
 
                 $subExpr->add(
                     $subQb->expr()->in(sprintf('%s.%s', $alias, $column), $details['filter'])

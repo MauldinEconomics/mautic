@@ -18,6 +18,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class UpdateLeadListsCommand extends ModeratedCommand
 {
+    private $setListModel;
+
     private function notifyCircularDependency($listsIds, $lists) {
         $container         = $this->getContainer();
         $notificationModel = $container->get('mautic.core.model.notification');
@@ -81,7 +83,8 @@ class UpdateLeadListsCommand extends ModeratedCommand
         $translator = $container->get('translator');
 
         /** @var \Mautic\LeadBundle\Model\ListModel $listModel */
-        $listModel = $container->get('mautic.scalability.model.scalablelistmodel');
+        $listModel          = $container->get('mautic.scalability.model.scalablelistmodel');
+        $this->setListModel = $container->get('mautic.mauldin.set.list');
 
         $id    = $input->getOption('list-id');
         $batch = $input->getOption('batch-limit');
@@ -93,7 +96,7 @@ class UpdateLeadListsCommand extends ModeratedCommand
 
         if ($id) {
             $list = $listModel->getEntity($id);
-            if ($list !== null) {
+            if ($list !== null && substr($list->getAlias(), 0, 4) !== 'csi-' && $this->processSetDependencies($list)) {
                 $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $id]).'</info>');
                 $processed = $listModel->rebuildListLeads($list, $batch, $max, $output);
                 $output->writeln(
@@ -136,7 +139,8 @@ class UpdateLeadListsCommand extends ModeratedCommand
                     // Get first item; using reset as the key will be the ID and not 0
                     $l = $listarray[$dep];
 
-                    if ($l !== null && substr($l->getAlias(), 0, 4) !== 'csi-') {
+                    if ($l !== null && substr($l->getAlias(), 0, 4) !== 'csi-' && $this->processSetDependencies($l)) {
+
                         $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $l->getId()]).'</info>');
                         $processed = $listModel->rebuildListLeads($l, $batch, $max, $output);
                         $output->writeln(
@@ -154,5 +158,49 @@ class UpdateLeadListsCommand extends ModeratedCommand
         $this->completeRun();
 
         return 0;
+    }
+
+    /*
+     * Checks if a list depends imediately on any SET list.
+     * If it depends, checks if the caches are valid.
+     * If any cache is not valid, requests a cache update.
+     *
+     * @param LeadList list
+     *
+     * Returns true if all caches are valid or there is no dependency.
+     * @return boolean
+     */
+    protected function processSetDependencies($list)
+    {
+        // Find SET dependencies
+        $deps = [];
+        foreach ($list->getFilters() as $filter) {
+            if ($filter['field'] === 'lead_set_list_membership') {
+                $deps = array_merge($deps, $filter['filter']);
+            }
+        }
+
+        if (empty($deps)) {
+            return true;
+        }
+
+        // Check if cache is valid
+        $invalids = [];
+        foreach ($deps as $dep) {
+            if (!$this->setListModel->isCacheValid($dep)) {
+                $invalids[] = $dep;
+            }
+        }
+
+        if (empty($invalids)) {
+            return true;
+        }
+
+        // Request cache update
+        foreach ($invalids as $invalid) {
+            $this->setListModel->requestCacheUpdate($invalid, $list);
+        }
+
+        return false;
     }
 }
