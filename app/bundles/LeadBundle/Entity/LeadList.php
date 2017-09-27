@@ -61,6 +61,11 @@ class LeadList extends FormEntity
     private $leads;
 
     /**
+     * @var int
+     */
+    private $updateInterval;
+
+    /**
      * Construct.
      */
     public function __construct()
@@ -92,6 +97,10 @@ class LeadList extends FormEntity
             ->setIndexBy('id')
             ->mappedBy('list')
             ->fetchExtraLazy()
+            ->build();
+
+        $builder->createField('updateInterval', 'integer')
+            ->columnName('update_interval')
             ->build();
     }
 
@@ -130,6 +139,7 @@ class LeadList extends FormEntity
                 [
                     'filters',
                     'isGlobal',
+                    'updateInterval',
                 ]
             )
             ->build();
@@ -301,5 +311,30 @@ class LeadList extends FormEntity
         $this->leads = new ArrayCollection();
         $this->setIsPublished(false);
         $this->setAlias('');
+    }
+
+    /**
+     * Set updateInterval.
+     *
+     * @param int $updateInterval
+     *
+     * @return LeadList
+     */
+    public function setUpdateInterval($updateInterval)
+    {
+        $this->isChanged('updateInterval', $updateInterval);
+        $this->updateInterval = $updateInterval;
+
+        return $this;
+    }
+
+    /**
+     * Get updateInterval.
+     *
+     * @return int
+     */
+    public function getUpdateInterval()
+    {
+        return $this->updateInterval;
     }
 }
