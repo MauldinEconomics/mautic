@@ -96,7 +96,7 @@ class UpdateLeadListsCommand extends ModeratedCommand
 
         if ($id) {
             $list = $listModel->getEntity($id);
-            if ($list !== null && substr($list->getAlias(), 0, 4) !== 'csi-' && $this->processSetDependencies($list)) {
+            if ($list !== null && substr($list->getAlias(), 0, 4) !== 'csi-' && $l->isPublished() && $this->processSetDependencies($list)) {
                 $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $id]).'</info>');
                 $processed = $listModel->rebuildListLeads($list, $batch, $max, $output);
                 $output->writeln(
@@ -139,7 +139,7 @@ class UpdateLeadListsCommand extends ModeratedCommand
                     // Get first item; using reset as the key will be the ID and not 0
                     $l = $listarray[$dep];
 
-                    if ($l !== null && substr($l->getAlias(), 0, 4) !== 'csi-' && $this->processSetDependencies($l)) {
+                    if ($l !== null && substr($l->getAlias(), 0, 4) !== 'csi-' && $l->isPublished() && $this->processSetDependencies($l)) {
 
                         $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $l->getId()]).'</info>');
                         $processed = $listModel->rebuildListLeads($l, $batch, $max, $output);
