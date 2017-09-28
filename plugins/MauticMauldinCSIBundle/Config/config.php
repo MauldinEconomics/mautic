@@ -35,6 +35,22 @@ return [
             ],
         ],
         'model' => [
+            'mautic.mauldin.set.request' => [
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\SETRequestModel',
+                'arguments' => [
+                    '%mautic.setapi_entity_code%',
+                    '%mautic.setapi_host%',
+                    '%mautic.setapi_private_key%',
+                    '%mautic.setapi_user_guid%',
+                ],
+            ],
+            'mautic.mauldin.set.list' => [
+                'class' => 'MauticPlugin\MauticMauldinCSIBundle\Model\SETListModel',
+                'arguments' => [
+                    'database_connection',
+                    'mautic.mauldin.set.request',
+                ],
+            ],
             'mautic.mauldin.csi.request' => [
                 'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\CSIRequestModel',
                 'arguments' => [
