@@ -39,7 +39,9 @@ class SETRequestModel
     }
 
     /*
-     * Helper function for centralizing request handling
+     * Helper function for centralizing request handling.
+     *
+     * @throws SETAPIException
      */
     private function apiCall($endpoint, $subject = null, $data = [], $query = [], $method = null)
     {
@@ -92,11 +94,17 @@ class SETRequestModel
      *   ...
      * ]
      *
+     * Since it is called from the UI, it fails safelly in case of API errors.
+     *
      * @return array
      */
     public function getSetLists()
     {
-        $data = $this->apiCall('list');
+        try {
+            $data = $this->apiCall('list');
+        } catch (SETAPIException $e) {
+            return [];
+        }
 
         $result = [];
         foreach ($data as $d) {
