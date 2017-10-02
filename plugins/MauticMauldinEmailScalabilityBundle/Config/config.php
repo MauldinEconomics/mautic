@@ -48,6 +48,13 @@ return [
         ],
 
         'other' => [
+            'mautic.mauldin.model.emailsendlog' => [
+                'class' => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Model\EmailSendLogModel',
+                'arguments' => [
+                    'database_connection',
+                    '%mautic.email_send_log_count_limit%',
+                ],
+            ],
             'mauldin.transport_queue.rabbitmq' => [
                 'lazy'      => true,
                 'class'     => 'MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\RabbitmqTransportQueue',

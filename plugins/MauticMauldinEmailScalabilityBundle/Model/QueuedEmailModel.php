@@ -75,6 +75,8 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             return false;
         }
 
+        $this->mailHelper->getTransport()->setCurrentEmailId($email->getId());
+
         $singleEmail = false;
         if (isset($leads['id'])) {
             $singleEmail = $leads['id'];
