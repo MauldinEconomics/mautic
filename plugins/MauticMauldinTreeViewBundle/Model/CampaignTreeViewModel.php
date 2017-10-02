@@ -14,6 +14,7 @@ class CampaignTreeViewModel
 {
     /**
      * CampaignTreeViewModel constructor.
+     *
      * @param EntityManager $em
      */
     public function __construct(EntityManager $em)
@@ -22,8 +23,8 @@ class CampaignTreeViewModel
     }
 
     /**
-     * Get a count of leads that belong to the campaign, including the removed ones
-     * Added by BrickAbode, based on getCampaignLeadCount(...)
+     * This is a modified version of getCampaignLeadCount(...),
+     * which also considers contacts that have opted out of the campaign.
      *
      * @param       $campaignId
      * @param array $pendingEvents List of specific events to rule out
@@ -65,15 +66,14 @@ class CampaignTreeViewModel
     }
 
     /**
-     * The difference from the function getCampaignLogCounts is that this one
-     * doesn't do the inner join. This way, the log counts consider even the opted outs,
-     * allowing us to present it in the TreeView (RR 8 and RR 13).
+     * Gets the "naive" count of contacts for each event.
+     *
      * @param      $campaignId
      * @param bool $excludeScheduled
      *
      * @return array
      */
-    public function getOverallCampaignLogCounts($campaignId, $excludeScheduled = false)
+    public function getOverallCampaignLogCounts($campaignId, $excludeScheduled = true)
     {
         $q = $this->em->getConnection()->createQueryBuilder()
             ->select('o.event_id, count(o.lead_id) as lead_count')
@@ -107,5 +107,44 @@ class CampaignTreeViewModel
         }
 
         return $return;
+    }
+
+    /**
+     * Return the number of leads that have been on the given campaign events.
+     *
+     * @param array(int) $eventIds
+     * @param bool $excludeScheduled
+     *
+     * @return int
+     */
+    public function getChildrenOverallCampaignLogCounts($eventIds, $excludeScheduled = true)
+    {
+        if (empty($eventIds)) {
+            return 0;
+        }
+
+        $q = $this->em->getConnection()->createQueryBuilder()
+            ->select('o.event_id, count(distinct(o.lead_id)) as lead_count')
+            ->from(MAUTIC_TABLE_PREFIX . 'campaign_lead_event_log', 'o');
+
+        $expr = $q->expr()->andX(
+            $q->expr()->in('o.event_id', $eventIds),
+            $q->expr()->orX(
+                $q->expr()->isNull('o.non_action_path_taken'),
+                $q->expr()->eq('o.non_action_path_taken', ':false')
+            )
+        );
+
+        if ($excludeScheduled) {
+            $expr->add(
+                $q->expr()->eq('o.is_scheduled', ':false')
+            );
+        }
+
+        $q->where($expr)
+            ->setParameter('false', false, 'boolean');
+
+        $results = $q->execute()->fetch();
+        return $results['lead_count'];
     }
 }

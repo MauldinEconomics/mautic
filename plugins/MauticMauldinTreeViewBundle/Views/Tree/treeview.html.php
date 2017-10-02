@@ -57,7 +57,7 @@
 </p>
 <ul class="list-group campaign-event-list">
     <?php foreach ($events as $event) : ?>
-        <li class="list-group-item bg-auto bg-light-xs">
+        <li class="list-group-item bg-auto bg-light-xs" style="margin-top: 1ex;">
             <div class="progress-bar progress-bar-success" style="width:<?php echo $event['percent']; ?>%"></div>
             <div class="box-layout">
                 <?php
@@ -81,7 +81,26 @@
                         <?php endif; ?>
                         <span class="h5 fw-sb text-primary mb-xs">
                             <?php echo $event['name']; ?>
-                            <small><?php echo $event['percent']; ?> % <?php echo "(".$event['logCount'].")"; ?></small>
+                            <small>
+                                <?php
+                                    if ($event['logCount']) {
+                                        echo $view['translator']->trans('mauldin.campaign.tree_view.stat.entered',
+                                            ['%count%' => $event['logCount'], '%percent%' => $event['percent']]
+                                        );
+                                    }
+                                    if ($event['childrenLogCount']) {
+                                        echo $view['translator']->trans('mauldin.campaign.tree_view.stat.progressed',
+                                            ['%count%' => $event['childrenLogCount']]
+                                        );
+                                    }
+                                    $diff = $event['logCount'] - $event['childrenLogCount'];
+                                    if ($diff) {
+                                        echo $view['translator']->trans('mauldin.campaign.tree_view.stat.still_in',
+                                            ['%count%' => $diff]
+                                        );
+                                    }
+                                ?>
+                            </small>
                         </span>
                     </h3>
                     <h6 style="<?php echo "margin-left:".($margin+5)."px;"; ?>" class="text-white dark-sm"><?php echo isset($event['description']) ? $event['description']:''; ?></h6>
