@@ -309,7 +309,7 @@ class PageController extends FormController
                         'unique' => $activePage->getUniqueHits(),
                     ],
                 ],
-                'abTestResults' => $abTestResults,
+                'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($activePage) : $abTestResults,
                 'security'      => $security,
                 'pageUrl'       => $model->generateUrl($activePage, true),
                 'previewUrl'    => $this->generateUrl('mautic_page_preview', ['id' => $objectId], true),
