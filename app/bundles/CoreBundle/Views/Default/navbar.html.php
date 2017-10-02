@@ -34,6 +34,9 @@
 
     <!-- start: right nav -->
     <ul class="nav navbar-nav navbar-right">
+        <li>
+            <img src="<?php echo $view['assets']->getUrl('media/images/entity-header-logo.png') ?>">
+        </li>
         <?php echo $view->render('MauticCoreBundle:Menu:profile.html.php'); ?>
         <li>
             <a href="javascript: void(0);" data-toggle="sidebar" data-direction="rtl">
