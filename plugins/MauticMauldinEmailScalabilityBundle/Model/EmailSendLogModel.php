@@ -25,7 +25,7 @@ class EmailSendLogModel
      * Maximum value of $count until log is commited to database
      * @var int
      */
-    private $LIMIT;
+    private $limit;
 
     /*
      * Id of the job
@@ -116,7 +116,7 @@ class EmailSendLogModel
      */
     private function shouldCommit($id)
     {
-        return $id !== $this->prevId || $this->count === self::LIMIT;
+        return $id !== $this->prevId || $this->count === $this->limit;
     }
 
     /*
