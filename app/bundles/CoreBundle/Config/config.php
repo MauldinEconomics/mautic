@@ -461,6 +461,15 @@ return [
             ],
         ],
         'other' => [
+            // Session handler
+            'session.handler.pdo' => [
+                'class' => \Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler::class,
+                'arguments' => [
+                    '%mautic.pdo_session_string%',
+                    ['db_username' => '%mautic.db_user%', 'db_password' => '%mautic.db_password%']
+                ]
+            ],
+
             // Error handler
             'mautic.core.errorhandler.subscriber' => [
                 'class'     => 'Mautic\CoreBundle\EventListener\ErrorHandlingListener',
