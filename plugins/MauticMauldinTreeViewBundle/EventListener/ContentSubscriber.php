@@ -52,52 +52,51 @@ class ContentSubscriber extends CommonSubscriber
                     $event->addTemplate('MauticMauldinTreeViewBundle:Tree:treeview_header.html.php');
                     break;
                 case 'tabs.content':
-                    $newVars = $event->getVars();
-                    $entity = $newVars['campaign'];
+                    $vars = $event->getVars();
+                    $entity = $vars['campaign'];
                     $overallLeadCount = $this->campaignModel->getOverallCampaignLeadCount($entity->getId());
-                    $campaignOverallLogCounts = $this->campaignModel->getOverallCampaignLogCounts($entity->getId(), true);
+                    $campaignOverallLogCounts = $this->campaignModel->getOverallCampaignLogCounts($entity->getId());
 
-                    $evs = $newVars['events'];
-                    // This `getTreeViewInfo` function must be called after the foreach that
-                    // adds logCount and percent.
-
-                    foreach ($evs as  $k =>  $types)
+                    // Collect all campaign events
+                    $allEvents = [];
+                    foreach ($vars['events'] as  $evType => $evs)
                     {
-                        // logCount and percent keys already existed in Mautic code. oLogCount and oPercent keys were
-                        // added by BrickAbode. The reason for that is the need to show opted out users, which simply
-                        // are not considered in logCount.
-                        foreach ($types as $ev)
+                        foreach ($evs as $ev)
                         {
-                            $ev['oLogCount'] = (isset($campaignOverallLogCounts[$ev['id']])) ? (int)$campaignOverallLogCounts[$ev['id']] : 0;
-                            $ev['oPercent'] = ($overallLeadCount) ? round($ev['oLogCount'] / $overallLeadCount * 100) : 0;
-                            $sortedEvents[] = $ev;
+                            // Get "naive" number of contacts at this event
+                            $ev['oLogCount'] = isset($campaignOverallLogCounts[$ev['id']]) ? (int) $campaignOverallLogCounts[$ev['id']] : 0;
+                            $allEvents[] = $ev;
                         }
                     }
 
-                    $treeEvents = $this->getTreeViewInfo($sortedEvents);
-                    $leadCount  = $this->campaignEventModel->getRepository()->getCampaignLeadCount($entity->getId());
-                    $leadStats  = ['leadCount' => $leadCount, 'overallLeadCount' => $overallLeadCount];
+                    $vars['eventsInfo'] = $this->getTreeViewInfo($allEvents, $overallLeadCount);
 
-                    $newVars['leadStats'] = $leadStats;
-                    $newVars['eventTree'] = $treeEvents;
+                    $vars['leadStats'] = [
+                        'leadCount' => $this->campaignEventModel->getRepository()->getCampaignLeadCount($entity->getId()),
+                        'overallLeadCount' => $overallLeadCount
+                    ];
 
-                    $event->addTemplate('MauticMauldinTreeViewBundle:Tree:treeview_content.html.php', $newVars);
+                    $event->addTemplate('MauticMauldinTreeViewBundle:Tree:treeview_content.html.php', $vars);
                     break;
             }
         }
     }
 
     /*
-     * This function takes a list of events and returns a list of events.
-     * The difference is that the returned list is correctly ordered
-     * considering the parent/child relationships.  The returned events also
-     * have the information about how deep in the tree they are.
+     * Takes a list of Campaign Events and process it. Basically, the events
+     * are ordered by "tree position" and stats are added to it so that the
+     * tree can be drawn in the view.
+     *
+     * @param array(CampaignEvent) $events
+     * @param int $oLeadCount  Total number of leads in the campaign, considering opt-outs
+     *
+     * @return array(eventInfo)
      */
-    protected function getTreeViewInfo($events)
+    protected function getTreeViewInfo($events, $oLeadCount)
     {
         /*
-         * This function builds a tree from the list of events, considering the
-         * parent/child relationship between them.
+         * This recursive function builds a tree from the list of events,
+         * considering the parent/child relationship between them.
          * [
          *     [
          *         "event": [info],
@@ -111,23 +110,48 @@ class ContentSubscriber extends CommonSubscriber
          * 'info' has only what is needed to pretty print it in the campaign
          * section, but more info can be added as well by using the variable $e.
          */
-        function buildTree(&$names, $parentId, $events, $depth)
+        function buildTree(&$names, $parentId, $events, $depth, $oLeadCount, $campaignModel)
         {
             foreach ($events as $e) {
                 if ($e['parent_id'] == $parentId) {
                     $id = $e['id'];
+
                     $children = [];
-                    buildTree($children, $id, $events, $depth + 1);
-                    // Takes portion of data needed
+                    buildTree($children, $id, $events, $depth + 1, $oLeadCount, $campaignModel);
+
+                    $childrenIds = [];
+                    foreach ($children as $child) {
+                        $childrenIds[] = $child['event']['id'];
+                        $childrenIds = array_merge($childrenIds, $child['event']['childrenIds']);
+                    }
+
+                    /*
+                     * Get total number of leads that progressed to a child event.
+                     */
+                    $childrenLogCount = (int) $campaignModel->getChildrenOverallCampaignLogCounts($childrenIds);
+
+                    /*
+                     * Fix the "naive" contact count
+                     */
+                    $logCount = $e['oLogCount'];
+                    if ($childrenLogCount > $logCount) {
+                        $logCount = $childrenLogCount;
+                    }
+
+                    $percent = $oLeadCount ? round($logCount / $oLeadCount * 100) : 0;
+
                     $sub_e = [
+                        'id' => $id,
                         'name' => $e['name'],
                         'eventType' => $e['eventType'],
                         'description' => $e['description'],
                         'depth' => $depth,
-                        'percent' => $e['oPercent'],
-                        'logCount' => $e['oLogCount'],
+                        'percent' =>  $percent,
+                        'logCount' => $logCount,
+                        'childrenLogCount' => $childrenLogCount,
                         'type' => $e['type'],
-                        'decisionPath' => $e['decisionPath']
+                        'decisionPath' => $e['decisionPath'],
+                        'childrenIds' => $childrenIds,
                     ];
                     $names[] = ["event" => $sub_e, "children" => $children];
                 }
@@ -135,10 +159,10 @@ class ContentSubscriber extends CommonSubscriber
         };
 
         $eventsTree = [];
-        buildTree($eventsTree, null, $events, 0);
+        buildTree($eventsTree, null, $events, 0, $oLeadCount, $this->campaignModel);
 
         /*
-         * This function just "flattens" a tree into a list.
+         * This function just "flattens" the tree into a list.
          */
         function buildListFromTree(&$eventsList, $eventsTree)
         {
@@ -150,6 +174,7 @@ class ContentSubscriber extends CommonSubscriber
 
         $eventsList = [];
         buildListFromTree($eventsList, $eventsTree);
+
         return $eventsList;
     }
 }

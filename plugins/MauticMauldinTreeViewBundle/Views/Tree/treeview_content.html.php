@@ -7,7 +7,7 @@
 ?>
     <div class="tab-pane fade in bdr-w-0" id="treeview-container">
         <?php echo trim($view->render('MauticMauldinTreeViewBundle:Tree:treeview.html.php', [
-            'events' => $eventTree,
+            'events' => $eventsInfo,
             'sources' => $sources,
             'leadStats' => $leadStats
         ])); ?>

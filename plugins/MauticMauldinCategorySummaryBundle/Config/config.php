@@ -22,6 +22,14 @@ return [
                 'iconClass' => 'fa-folder',
                 'priority' => -1,
             ],
+            'mauldin.kibana.menu.index' => [
+                'iconClass' => 'fa-bar-chart',
+                'priority' => 21,
+                'uri' => '%mautic.kibana_url%',
+                'linkAttributes' => [
+                    'target' => '_blank',
+                ],
+            ],
         ],
     ],
 ];
