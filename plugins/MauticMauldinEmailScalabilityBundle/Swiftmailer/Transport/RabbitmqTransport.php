@@ -36,6 +36,22 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
     private $transaction = false;
     private $logs        = [];
 
+    /*
+     * Id of the current email being sent.
+     * Used for enabling logging of the actual sending.
+     * @var int
+     */
+    private $currentEmailId = null;
+
+    /*
+     * Set the current email id.
+     *
+     * @param int $id Id of the entity of the current email being sent.
+     */
+    public function setCurrentEmailId($id) {
+        $this->currentEmailId = $id;
+    }
+
     /** {@inheritdoc} */
     public function setTransportQueue(TransportQueueInterface $queue)
     {
@@ -91,12 +107,12 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
 
         if (!$this->transaction) {
             try {
-                $this->queue->publish(serialize($message));
+                $this->queue->publish(serialize(['emailId' => $this->currentEmailId, 'emailMsg' => $message]));
             } catch (\Exception $e) {
                 throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
             }
         } else {
-            $this->logs [] = serialize($message);
+            $this->logs [] = serialize(['emailId' => $this->currentEmailId, 'emailMsg' => $message]);
         }
 
         return 1;

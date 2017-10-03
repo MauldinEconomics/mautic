@@ -55,6 +55,12 @@ class DefaultController extends CommonController {
             ];
         }
 
+        $emailSendLogs = $this->get('mautic.mauldin.model.emailsendlog')->getEmailSendLogsSummary();
+        $emailRepo = $this->get('mautic.email.model.email')->getRepository();
+        foreach($emailSendLogs as &$l) {
+            $l['queued_count'] = $emailRepo->getEntity($l['email_id'])->getSentCount(true);
+        }
+
         usort($queues, function($a, $b){return strcmp($a["pname"], $b["pname"]);});
 
         //render view
@@ -62,6 +68,7 @@ class DefaultController extends CommonController {
             'contentTemplate' => 'MauticMauldinRabbitMQBundle:RabbitMQStatus:index.html.php',
             'viewParameters' => [
                 'items' => $queues,
+                'sendLogs' => $emailSendLogs,
             ]
         ]);
     }

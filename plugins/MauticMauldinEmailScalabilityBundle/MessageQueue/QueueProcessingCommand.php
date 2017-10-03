@@ -33,7 +33,8 @@ abstract class QueueProcessingCommand extends ModeratedCommand
         $this->addOption('--max-retries', '-r', InputOption::VALUE_REQUIRED, 'Maximum number of times the queue is allowed to time out.', self::MAX_RETRIES)
             ->addOption('--max-items', '-m', InputOption::VALUE_REQUIRED, 'Maximum amount of messages processed.', PHP_INT_MAX)
             ->addOption('--default-timeout', null, InputOption::VALUE_REQUIRED, 'Time to wait for an item.', self::DEFAULT_TIMEOUT)
-            ->addOption('--initial-timeout', null, InputOption::VALUE_REQUIRED, 'Time to wait for the first item.', self::INITIAL_TIMEOUT);
+            ->addOption('--initial-timeout', null, InputOption::VALUE_REQUIRED, 'Time to wait for the first item.', self::INITIAL_TIMEOUT)
+            ->addOption('--job-id', null, InputOption::VALUE_OPTIONAL, 'Id of the job', 0);
 
         parent::configure();
     }
@@ -55,7 +56,7 @@ abstract class QueueProcessingCommand extends ModeratedCommand
 
     abstract protected function setup(InputInterface $input, OutputInterface $output);
 
-    private function wait(
+    protected function wait(
         $maxRetries     = self::MAX_RETRIES,
         $maxItems       = PHP_INT_MAX,
         $defaultTimeout = self::DEFAULT_TIMEOUT,

@@ -20,6 +20,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ProcessEmailQueueCommand extends QueueProcessingCommand
 {
+    private $sendLogModel = null;
+
     /**
      * {@inheritdoc}
      */
@@ -54,11 +56,17 @@ EOT
             $transport->start();
         }
 
-        $callback = function ($msg) use ($transport, $dispatcher) {
+        $this->sendLogModel = $container->get('mautic.mauldin.model.emailsendlog');
+        $this->sendLogModel->setJobId($input->getOption('job-id'));
+
+        $sendLogModel = $this->sendLogModel;
+
+        $callback = function ($msg) use ($transport, $dispatcher, $sendLogModel) {
             try {
                 $message = unserialize($msg->body);
-                $transport->sendDirect($message);
+                $transport->sendDirect($message['emailMsg']);
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+                $sendLogModel->logEmailSend($message['emailId']);
             } catch (\Swift_TransportException $e) {
                 if ($dispatcher->hasListeners(EmailEvents::EMAIL_FAILED)) {
                     $event = new QueueEmailEvent($message);
@@ -70,5 +78,16 @@ EOT
         $queue->consume($callback);
 
         return 0;
+    }
+
+    protected function wait(
+        $maxRetries     = self::MAX_RETRIES,
+        $maxItems       = PHP_INT_MAX,
+        $defaultTimeout = self::DEFAULT_TIMEOUT,
+        $initialTimeout = self::INITIAL_TIMEOUT)
+    {
+        $result = parent::wait($maxRetries, $maxItems, $defaultTimeout, $initialTimeout);
+        $this->sendLogModel->logEmailSendEnd();
+        return $result;
     }
 }
