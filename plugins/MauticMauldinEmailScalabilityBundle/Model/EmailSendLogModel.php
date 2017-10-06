@@ -148,7 +148,9 @@ EOQ;
     }
 
     /*
+     * Gets the most recent email send logs
      *
+     * @return array
      */
     public function getEmailSendLogsSummary() {
         $q = <<<EOQ
@@ -168,6 +170,8 @@ FROM
     ) AS l
         JOIN
     mautic.emails AS e ON e.id = l.email_id
+WHERE
+    l.last_send_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
 ORDER BY last_send_date DESC
 EOQ;
 
