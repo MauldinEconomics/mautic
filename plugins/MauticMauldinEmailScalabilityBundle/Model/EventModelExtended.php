@@ -593,8 +593,10 @@ class EventModelExtended extends EventModel
             } catch (\Exception $e) {
                 $this->emailModel->rollback();
 
+                var_dump(date("Y-m-d H:i:s"));
                 $output->writeln('Exception while consuming message starting events');
                 $output->writeln($e->getMessage());
+                var_dump($e->getTrace());
             }
             unset($leads, $campaignLeads);
             gc_collect_cycles();
