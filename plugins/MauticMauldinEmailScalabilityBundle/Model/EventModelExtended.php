@@ -350,7 +350,7 @@ class EventModelExtended extends EventModel
                 $campaignLeads = $this->paginateLeadsStartingEvents($campaignId, $lastId, $limit);
             }
 
-            $queue->publish(implode(' ', $campaignLeads));
+            $queue->publish(serialize($campaignLeads));
 
             $lastId = array_values(array_slice($campaignLeads, -1))[0];
             $currentCount += count($campaignLeads);
@@ -444,7 +444,7 @@ class EventModelExtended extends EventModel
             $logRepo
         ) {
             try {
-                $campaignLeads = explode(' ', $msg->body);
+                $campaignLeads = unserialize($msg->body);
                 if (!empty($campaignLeads)) {
                     $leads = $this->leadModel->getEntities(
                         [
