@@ -444,7 +444,11 @@ class EventModelExtended extends EventModel
             $logRepo
         ) {
             try {
+                echo('----------- DEBUG DUMPS ---------------' . PHP_EOL);
+                var_dump($campaignId);
+                var_dump($msg->body);
                 $campaignLeads = explode(' ', $msg->body);
+                var_dump($campaignLeads);
                 if (!empty($campaignLeads)) {
                     $leads = $this->leadModel->getEntities(
                         [
