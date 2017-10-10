@@ -103,7 +103,7 @@ class PublicController extends CommonFormController
     {
         /** @var \Mautic\EmailBundle\Model\EmailModel $model */
         $model = $this->getModel('email');
-        $model->hitEmail($idHash, $this->request);
+        $model->queueHitEmail($idHash, $this->request);
 
         return TrackingPixelHelper::getResponse($this->request);
     }

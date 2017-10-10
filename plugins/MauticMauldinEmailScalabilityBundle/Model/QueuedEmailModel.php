@@ -15,6 +15,7 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\EmailBundle\Swiftmailer\Exception\BatchQueueMaxException;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueRequestHelper;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\MemoryTransactionInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -27,7 +28,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
 {
     const BROADCAST_EMAIL_QUEUE = 'broadcast-email';
+    const EMAIL_HIT_QUEUE = 'email-hit';
 
+    protected $hitQueue = null;
     protected $channelHelper;
     protected $notificationModel;
     protected $counter = [];
@@ -55,7 +58,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     public function sendEmail($email, $leads, $options = [])
     {
         $listId              = (isset($options['listId'])) ? $options['listId'] : null;
-        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : false;
+        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : $email->isIgnoreDNC();
         $tokens              = (isset($options['tokens'])) ? $options['tokens'] : [];
         $sendBatchMail       = (isset($options['sendBatchMail'])) ? $options['sendBatchMail'] : true;
         $assetAttachments    = (isset($options['assetAttachments'])) ? $options['assetAttachments'] : [];
@@ -536,6 +539,9 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             ->andWhere(sprintf($statPrefix.' (%s)', $statQb->getSQL()))
             ->andWhere(sprintf('NOT EXISTS (%s)', $mqQb->getSQL()))
             ->setParameter('false', false, 'boolean');
+        if (!$email->isIgnoreDNC()) {
+            $q->andWhere(sprintf('NOT EXISTS (%s)', $dncQb->getSQL()));
+        }
         if ($lastLead !== null) {
             $q->andWhere($q->expr()->gt('l.id', $lastLead));
         }
@@ -1009,5 +1015,28 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         } else {
             return false;
         }
+    }
+
+    public function getEmailHitQueue()
+    {
+        if ($this->hitQueue === null) {
+            $this->hitQueue = $this->getChannelHelper()->declareQueue(self::EMAIL_HIT_QUEUE);
+        }
+        return $this->hitQueue;
+    }
+
+    public function queueHitEmail($idHash, $request)
+    {
+        $queue = $this->getEmailHitQueue();
+
+        $queue->publish(serialize([
+            'id_hash' => $idHash,
+            'request' => QueueRequestHelper::flattenRequest($request),
+        ]));
+    }
+
+    public function consumeHitEmail($idHash, $request)
+    {
+        $this->hitEmail($idHash, $request, false, false);
     }
 }
