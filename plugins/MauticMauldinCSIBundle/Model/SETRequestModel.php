@@ -45,7 +45,12 @@ class SETRequestModel
      */
     private function apiCall($endpoint, $subject = null, $data = [], $query = [], $method = null)
     {
-        $call = $this->client->call($endpoint, $subject, $data, $query, $method);
+        try {
+            $call = $this->client->call($endpoint, $subject, $data, $query, $method);
+        } catch (\Exception $e) {
+            throw new SETAPIException('Request to SET failed: ' . $e->getMessage());
+        }
+
         $result = $call->getResult();
         $resultData = $result->getData();
 
