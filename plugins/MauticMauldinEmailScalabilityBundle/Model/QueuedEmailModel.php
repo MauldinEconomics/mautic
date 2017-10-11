@@ -58,7 +58,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
     public function sendEmail($email, $leads, $options = [])
     {
         $listId              = (isset($options['listId'])) ? $options['listId'] : null;
-        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : $email->isIgnoreDNC();
+        $ignoreDNC           = (isset($options['ignoreDNC'])) ? $options['ignoreDNC'] : false;
         $tokens              = (isset($options['tokens'])) ? $options['tokens'] : [];
         $sendBatchMail       = (isset($options['sendBatchMail'])) ? $options['sendBatchMail'] : true;
         $assetAttachments    = (isset($options['assetAttachments'])) ? $options['assetAttachments'] : [];
@@ -539,9 +539,6 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             ->andWhere(sprintf($statPrefix.' (%s)', $statQb->getSQL()))
             ->andWhere(sprintf('NOT EXISTS (%s)', $mqQb->getSQL()))
             ->setParameter('false', false, 'boolean');
-        if (!$email->isIgnoreDNC()) {
-            $q->andWhere(sprintf('NOT EXISTS (%s)', $dncQb->getSQL()));
-        }
         if ($lastLead !== null) {
             $q->andWhere($q->expr()->gt('l.id', $lastLead));
         }
