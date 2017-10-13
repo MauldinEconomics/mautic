@@ -34,6 +34,13 @@ class BroadcastGenerateCommand extends ModeratedCommand
                 'Send a specific email with ID.',
                 null
             )
+            ->addOption(
+                '--batch-size',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Maximum size of the batch of emails to be put in the broadcast queue',
+                50
+            )
             ->setHelp(<<<'EOT'
 The <info>%command.name%</info> command is used to generate the broadcast queue
 <info>php %command.full_name%</info>
@@ -54,11 +61,12 @@ EOT
         $em         = $container->get('doctrine')->getManager();
         $translator = $container->get('translator');
 
-        $id     = $input->getOption('email-id');
-        $emails = $emailModel->getRepository()->getPublishedBroadcasts($id);
+        $batchSize = (int)$input->getOption('batch-size');
+        $id        = $input->getOption('email-id');
+        $emails    = $emailModel->getRepository()->getPublishedBroadcasts($id);
 
         while (($email = $emails->next()) !== false) {
-            list($sentCount, $failedCount, $ignore, $last) = $emailModel->sendEmailToListsGenerate($email[0], null, 100, true, $output);
+            list($sentCount, $failedCount, $ignore, $last) = $emailModel->sendEmailToListsGenerate($email[0], null, $batchSize, true, $output);
 
             $output->writeln("\n".$translator->trans('mautic.email.email').': '.$email[0]->getName()."\n".var_export(['queued' => $sentCount, 'failed' => $failedCount], true));
             $em->detach($email[0]);
