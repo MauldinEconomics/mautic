@@ -165,11 +165,11 @@ FROM
             SUM(send_count) as send_count,
             MAX(last_send_date) as last_send_date
         FROM
-            mautic.ba_email_send_log
+            ba_email_send_log
         GROUP BY email_id
     ) AS l
         JOIN
-    mautic.emails AS e ON e.id = l.email_id
+    emails AS e ON e.id = l.email_id
 WHERE
     l.last_send_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
 ORDER BY last_send_date DESC
