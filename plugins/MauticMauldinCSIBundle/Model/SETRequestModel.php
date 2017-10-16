@@ -48,6 +48,7 @@ class SETRequestModel
         try {
             $call = $this->client->call($endpoint, $subject, $data, $query, $method);
         } catch (\Exception $e) {
+            error_log($e);
             throw new SETAPIException('Request to SET failed: ' . $e->getMessage());
         }
 
@@ -108,6 +109,7 @@ class SETRequestModel
         try {
             $data = $this->apiCall('list');
         } catch (SETAPIException $e) {
+            error_log($e);
             return [];
         }
 

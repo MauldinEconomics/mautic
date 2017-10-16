@@ -133,6 +133,8 @@ class UpdateLeadListsCommand extends ModeratedCommand
                         $nodes[$node] = $listarray[$node];
                     }
                     $this->notifyCircularDependency(implode(', ', $nodesIds), $nodes);
+
+                    error_log($e);
                 }
 
                 foreach ($result as $dep) {

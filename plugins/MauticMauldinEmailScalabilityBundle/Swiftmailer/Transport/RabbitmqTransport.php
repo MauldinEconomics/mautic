@@ -109,6 +109,7 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
             try {
                 $this->queue->publish(serialize(['emailId' => $this->currentEmailId, 'emailMsg' => $message]));
             } catch (\Exception $e) {
+                error_log($e);
                 throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
             }
         } else {
@@ -230,6 +231,7 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
                 try {
                     $this->queue->publish($message);
                 } catch (\Exception $e) {
+                    error_log($e);
                     throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
                 }
             }

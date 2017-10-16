@@ -68,6 +68,7 @@ EOT
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
                 $sendLogModel->logEmailSend($message['emailId']);
             } catch (\Swift_TransportException $e) {
+                error_log($e);
                 if ($dispatcher->hasListeners(EmailEvents::EMAIL_FAILED)) {
                     $event = new QueueEmailEvent($message);
                     $dispatcher->dispatch(EmailEvents::EMAIL_FAILED, $event);

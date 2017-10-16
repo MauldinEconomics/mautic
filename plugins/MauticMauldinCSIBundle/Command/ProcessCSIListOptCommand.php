@@ -104,6 +104,7 @@ class ProcessCSIListOptCommand extends QueueProcessingCommand
             }
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
         } catch (CSIAPIException $e) {
+            error_log($e);
             switch ($e->getCode()) {
                 case 200:
                     // Log api errors to a file in json format
