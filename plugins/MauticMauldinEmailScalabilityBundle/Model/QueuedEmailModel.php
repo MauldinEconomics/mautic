@@ -639,6 +639,14 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             true
         );
     }
+
+    private function maybeRequestEC2Helper($what, $count) {
+        $cmd = "mauldin-aws-helper $what $count";
+        echo($cmd . PHP_EOL);
+        $result = shell_exec($cmd);
+        echo($result . PHP_EOL);
+    }
+
     /**
      * Send an email to lead lists.
      *
@@ -740,6 +748,8 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
                 return [0, 0, []];
             }
         }
+
+        $this->maybeRequestEC2Helper('broadcast', $totalLeadCount);
 
         foreach ($lists as $list) {
             if (!$batch && $limit !== null && $limit <= 0) {
