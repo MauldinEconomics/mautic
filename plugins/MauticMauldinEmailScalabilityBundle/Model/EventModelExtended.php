@@ -593,6 +593,7 @@ class EventModelExtended extends EventModel
             } catch (\Exception $e) {
                 $this->emailModel->rollback();
 
+                error_log($e);
                 $output->writeln('Exception while consuming message starting events');
                 $output->writeln($e->getMessage());
             }
@@ -965,6 +966,7 @@ class EventModelExtended extends EventModel
             } catch (Exception $e) {
                 $this->emailModel->rollback();
 
+                error_log($e);
                 $output->writeln('Exception while consuming message scheduled events');
                 $output->writeln($e);
             }
@@ -1405,6 +1407,8 @@ class EventModelExtended extends EventModel
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (Exception $e) {
                 $this->emailModel->rollback();
+
+                error_log($e);
                 $output->writeln('Exception while consuming message of negative events');
                 $output->writeln($e);
             }

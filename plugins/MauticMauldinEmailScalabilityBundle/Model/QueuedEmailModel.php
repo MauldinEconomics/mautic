@@ -889,14 +889,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             } catch (\Exception $e) {
                 $this->rollback();
-                // log in case of failure
-                $log = [
-                      'error' => $e->getMessage(),
-                      'input' => $input,
-                     ];
-                $file = fopen('app/logs/broadcast-email-consumer.log', 'a');
-                fwrite($file, json_encode($log)."\n");
-                fclose($file);
+                error_log($e);
                 // And acknowledge the message
                 $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
             }
