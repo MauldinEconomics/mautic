@@ -690,25 +690,23 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         $failedCount = 0;
         $progress    = false;
 
-        $totalLeadCount = $this->getPendingLeads($email, null, true, null, true, null, false);
+        $totalPendingCount = $this->getPendingLeads($email, null, true, null, true, null, false);
 
         if ($isSampling) {
             $sendAlreadyCount = $this->getPendingLeads($email, null, true, null, true, null, true);
-            $totalLeadCount   = floor($email->getSampleSize() * ($sendAlreadyCount + $totalLeadCount) / 100) - $sendAlreadyCount;
-        } elseif ($isRollOut) {
-            $sendAlreadyCount = $this->getPendingLeads($email, null, true, null, true, null, true);
-            $totalLeadCount   = $totalLeadCount - $sendAlreadyCount;
+            $totalPendingCount = floor($email->getSampleSize() * ($sendAlreadyCount + $totalPendingCount) / 100) - $sendAlreadyCount;
         }
+
         if ($batch && $output) {
             $progressCounter = 0;
 
-            if ($totalLeadCount <= 0) {
+            if ($totalPendingCount <= 0) {
                 return;
             }
 
             // Broadcast send through CLI
             $output->writeln("\n<info>".$email->getName().'</info>');
-            $progress = new ProgressBar($output, $totalLeadCount);
+            $progress = new ProgressBar($output, $totalPendingCount);
         }
 
         if ($isRollOut) {
@@ -749,7 +747,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             }
         }
 
-        $this->maybeRequestEC2Helper('broadcast', $totalLeadCount);
+        $this->maybeRequestEC2Helper('broadcast', $totalPendingCount);
 
         foreach ($lists as $list) {
             if (!$batch && $limit !== null && $limit <= 0) {
