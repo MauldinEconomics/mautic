@@ -100,7 +100,6 @@ class LeadSubscriber extends CommonSubscriber
                 $func = in_array($func, ['eq', 'in']) ? 'EXISTS' : 'NOT EXISTS';
 
                 $event->setSubQuery(sprintf('%s (%s)', $func, $details['filter']));
-                $event->setFilteringStatus(true);
                 break;
 
             case 'lead_asset_download':
@@ -135,7 +134,6 @@ class LeadSubscriber extends CommonSubscriber
                     ->where($subExpr);
 
                 $event->setSubQuery(sprintf('%s (%s)', $func, $subQb->getSQL()));
-                $event->setFilteringStatus(true);
                 break;
 
             case 'lead_set_list_membership':
@@ -170,7 +168,6 @@ class LeadSubscriber extends CommonSubscriber
                     ->where($subExpr);
 
                 $event->setSubQuery(sprintf('%s (%s)', $func, $subQb->getSQL()));
-                $event->setFilteringStatus(true);
                 break;
         }
     }
