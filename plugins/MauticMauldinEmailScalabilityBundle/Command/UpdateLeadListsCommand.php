@@ -137,6 +137,11 @@ class UpdateLeadListsCommand extends ModeratedCommand
                     error_log($e);
                 }
 
+                echo('Lists: ' . json_encode($result) . PHP_EOL);
+
+                $updated = [];
+                $notUpdated = [];
+
                 foreach ($result as $dep) {
                     // Get first item; using reset as the key will be the ID and not 0
                     $l = $listarray[$dep];
@@ -148,10 +153,17 @@ class UpdateLeadListsCommand extends ModeratedCommand
                         $output->writeln(
                             '<comment>'.$translator->trans('mautic.lead.list.rebuild.leads_affected', ['%leads%' => $processed]).'</comment>'."\n"
                         );
+
+                        $updated[] = $l->getId();
+                    } else {
+                        $notUpdated[] = $l->getId();
                     }
 
                     unset($l);
                 }
+
+                echo('Updated: ' . json_encode($updated) . PHP_EOL);
+                echo('Not updated: ' . json_encode($notUpdated) . PHP_EOL);
             }
 
             unset($lists);
