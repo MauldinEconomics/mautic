@@ -96,7 +96,7 @@ class UpdateLeadListsCommand extends ModeratedCommand
 
         if ($id) {
             $list = $listModel->getEntity($id);
-            if ($list !== null && substr($list->getAlias(), 0, 4) !== 'csi-' && $l->isPublished() && $this->processSetDependencies($list)) {
+            if ($list !== null && substr($list->getAlias(), 0, 4) !== 'csi-' && $list->isPublished() && $this->processSetDependencies($list)) {
                 $output->writeln('<info>'.$translator->trans('mautic.lead.list.rebuild.rebuilding', ['%id%' => $id]).'</info>');
                 $processed = $listModel->rebuildListLeads($list, $batch, $max, $output);
                 $output->writeln(
