@@ -21,6 +21,17 @@ class SETListModel
         $this->setRequest = $setRequest;
     }
 
+    public function log_setlist($listId)
+    {
+        $q = "SELECT *, NOW() AS now FROM setlists AS l WHERE l.id = :id";
+
+        $stmt = $this->conn->prepare($q);
+        $stmt->bindValue('id', $listId);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        echo('      Setlist: ' . json_encode($result) . PHP_EOL);
+    }
+
     /*
      * @param int $listId: the id of the SET list
      * @param string $listName: the name of the SET list
@@ -45,6 +56,8 @@ EOQ;
         $stmt->bindValue('name', $listName);
         $stmt->bindValue('interval', $segment->getUpdateInterval());
         $stmt->execute();
+
+        $this->log_setlist($listId);
     }
 
     /*
@@ -53,6 +66,8 @@ EOQ;
      */
     public function requestCacheUpdate($listId, $segment)
     {
+        $this->log_setlist($listId);
+
         // Check if a request has already been made
         $q = <<<EOQ
 SELECT
@@ -71,6 +86,7 @@ EOQ;
         $result = $stmt->fetchAll();
 
         if (! empty($result)) {
+            echo('    Update already requested for: ' . $listId . PHP_EOL);
             return;
         }
 
@@ -126,8 +142,10 @@ EOQ;
      *
      * @return boolean
      */
-    public function isCacheValid($listId)
+    public function isCacheValid($listId, $segment)
     {
+        $this->log_setlist($listId);
+
         $q = <<<EOQ
 SELECT
         l.id
@@ -136,13 +154,19 @@ SELECT
     WHERE
         l.id = :id
             AND
-        DATE_ADD(l.last_update, INTERVAL l.update_interval HOUR) > NOW()
+        DATE_ADD(l.last_update, INTERVAL
+                CASE WHEN :interval < l.update_interval THEN :interval
+                     ELSE l.update_interval END
+            HOUR) > NOW()
 EOQ;
 
         $stmt = $this->conn->prepare($q);
         $stmt->bindValue('id', $listId);
+        $stmt->bindValue('interval', $segment->getUpdateInterval());
         $stmt->execute();
         $result = $stmt->fetchAll();
+
+        echo('    ' . $listId . ' cache valid: ' . json_encode(! empty($result)) . PHP_EOL);
 
         return ! empty($result);
     }
@@ -154,18 +178,24 @@ EOQ;
      */
     public function maybeUpdateCache($listId)
     {
+        echo('  Maybe update: ' . $listId . PHP_EOL);
+        $this->log_setlist($listId);
+
         $lastUpdate = $this->_getLastUpdateDate($listId);
 
         // Check if new cache available
         $timeFinished = $this->setRequest->isNewerCacheAvailable($listId, $lastUpdate);
         if (null === $timeFinished) {
+            echo('    No update available' . PHP_EOL);
             return false;
         }
+        echo('    Newer cache available: ' . date("Y-m-d H:i:s", $timeFinished) . PHP_EOL);
 
         // Download new cache
         $emails = $this->setRequest->downloadCache($listId);
 
         if (null === $emails) {
+            echo('    No email list' . PHP_EOL);
             return false;
         }
 
@@ -182,6 +212,8 @@ EOQ;
 
         // Update list
         $this->_setLastUpdateDate($listId, $timeFinished);
+
+        $this->log_setlist($listId);
 
         return true;
     }
