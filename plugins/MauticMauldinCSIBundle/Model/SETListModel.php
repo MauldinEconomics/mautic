@@ -23,7 +23,7 @@ class SETListModel
 
     public function log_setlist($listId)
     {
-        $q = "SELECT *, NOW() AS now FROM setlists AS l WHERE l.id = :id";
+        $q = "SELECT *, NOW() AS now, UTC_TIMESTAMP() AS utc_now FROM setlists AS l WHERE l.id = :id";
 
         $stmt = $this->conn->prepare($q);
         $stmt->bindValue('id', $listId);
@@ -155,7 +155,7 @@ SELECT
         DATE_ADD(l.last_update, INTERVAL
                 CASE WHEN :interval < l.update_interval THEN :interval
                      ELSE l.update_interval END
-            HOUR) > NOW()
+            HOUR) > UTC_TIMESTAMP()
 EOQ;
 
         $stmt = $this->conn->prepare($q);
