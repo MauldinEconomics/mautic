@@ -186,6 +186,8 @@ class UpdateLeadListsCommand extends ModeratedCommand
      */
     protected function processSetDependencies($list)
     {
+        echo('Check SET deps for segment ' . $list->getId() . PHP_EOL);
+
         // Find SET dependencies
         $deps = [];
         foreach ($list->getFilters() as $filter) {
@@ -197,24 +199,17 @@ class UpdateLeadListsCommand extends ModeratedCommand
         if (empty($deps)) {
             return true;
         }
+        echo('  Deps: ' . json_encode($deps) . PHP_EOL);
 
         // Check if cache is valid
         $invalids = [];
         foreach ($deps as $dep) {
-            if (!$this->setListModel->isCacheValid($dep)) {
+            if (!$this->setListModel->isCacheValid($dep, $list)) {
                 $invalids[] = $dep;
+                $this->setListModel->requestCacheUpdate($dep, $list);
             }
         }
 
-        if (empty($invalids)) {
-            return true;
-        }
-
-        // Request cache update
-        foreach ($invalids as $invalid) {
-            $this->setListModel->requestCacheUpdate($invalid, $list);
-        }
-
-        return false;
+        return empty($invalids);
     }
 }

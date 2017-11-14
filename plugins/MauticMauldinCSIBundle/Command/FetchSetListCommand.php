@@ -36,6 +36,8 @@ class FetchSetListCommand extends ModeratedCommand
 
         $listIds = $setList->getUpdatableLists();
 
+        echo('Updatable: ' . json_encode($listIds) . PHP_EOL);
+
         foreach ($listIds as $listId) {
             $flag = $setList->maybeUpdateCache($listId);
             if ($flag) {

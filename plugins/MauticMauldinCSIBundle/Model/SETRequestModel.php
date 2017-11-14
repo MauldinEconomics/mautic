@@ -129,11 +129,31 @@ class SETRequestModel
      */
     public function requestCacheUpdate($listId)
     {
-        $this->apiCall('listbuild_queue', null, [], ['id' => $listId]);
+        // Only request a status update if there is not build already queued.
+        if ($this->getTimeFinished($listId)) {
+            $this->apiCall('listbuild_queue', null, [], ['id' => $listId]);
+            echo('    Update requested for: ' . $listId . PHP_EOL);
+        } else {
+            echo('    Listbuild already queued for: ' . $listId . PHP_EOL);
+        }
 
         $result = $this->apiCall('list', null, [], ['id' => $listId]);
 
         return $result['name'];
+    }
+
+    /*
+     * Returns the 'time_finished' value.
+     * If it is "falsy", it means there is some unfinished build.
+     *
+     * @param int $listId: The id of the SET list
+     *
+     * @return maybe(datetime)
+     */
+    public function getTimeFinished($listId)
+    {
+        $result = $this->apiCall('listbuild_status', null, [], ['id' => $listId]);
+        return strtotime($result['time_finished']);
     }
 
     /*
@@ -149,11 +169,9 @@ class SETRequestModel
      */
     public function isNewerCacheAvailable($listId, $lastUpdate)
     {
-        $result = $this->apiCall('listbuild_status', null, [], ['id' => $listId]);
+        $timeFinished = $this->getTimeFinished($listId);
 
-        $timeFinished = strtotime($result['time_finished']);
-
-        if (null !== $timeFinished && $timeFinished > $lastUpdate) {
+        if ($timeFinished && $timeFinished > $lastUpdate) {
             return $timeFinished;
         }
 
