@@ -115,15 +115,13 @@ EOQ;
 
         $stmt = $this->conn->prepare($q);
         $stmt->execute();
-        $rows = $stmt->fetchAll();
+        $result = $stmt->fetchAll();
 
-        $result = [];
-        if (null !== $rows) {
-            foreach ($rows as $row) {
-                $result[] = $row['id'];
-            }
+        $listIds = [];
+        foreach ($result as $row) {
+            $listIds[] = $row['id'];
         }
-        return $result;
+        return $listIds;
     }
 
     /*
