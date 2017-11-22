@@ -36,6 +36,7 @@ use Mautic\PageBundle\Event\PageBuilderEvent;
 use Mautic\PageBundle\Event\PageEvent;
 use Mautic\PageBundle\Event\PageHitEvent;
 use Mautic\PageBundle\PageEvents;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueRequestHelper;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -48,6 +49,10 @@ class PageModel extends FormModel
     use TranslationModelTrait;
     use VariantModelTrait;
     use BuilderModelTrait;
+
+    const PAGE_HIT_QUEUE = 'page-hit';
+
+    protected $hitQueue = null;
 
     /**
      * @var bool
@@ -85,6 +90,11 @@ class PageModel extends FormModel
     protected $pageTrackableModel;
 
     /**
+     * @var ChannelHelper
+     */
+    protected $channelHelper;
+
+    /**
      * PageModel constructor.
      *
      * @param CookieHelper   $cookieHelper
@@ -117,6 +127,19 @@ class PageModel extends FormModel
     public function setCatInUrl($catInUrl)
     {
         $this->catInUrl = $catInUrl;
+    }
+
+    /**
+     * @param $channelHelper
+     */
+    public function setChannelHelper($channelHelper)
+    {
+        $this->channelHelper = $channelHelper;
+    }
+
+    public function getChannelHelper()
+    {
+        return $this->channelHelper;
     }
 
     /**
@@ -388,6 +411,75 @@ class PageModel extends FormModel
         return implode('/', $slugs);
     }
 
+    public function getPageHitQueue()
+    {
+        if ($this->hitQueue === null) {
+            $this->hitQueue = $this->getChannelHelper()->declareQueue(self::PAGE_HIT_QUEUE);
+        }
+        return $this->hitQueue;
+    }
+
+    public function queueHitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
+    {
+        // Don't skew results with user hits
+        if (!$this->security->isAnonymous()) {
+            return;
+        }
+
+        $queue = $this->getPageHitQueue();
+        $ipAddress = $this->ipLookupHelper->getIpAddress();
+        $ip = $ipAddress->getIpAddress();
+        $leadId = null;
+        // Get lead if required
+        if (null == $lead) {
+            $lead = $this->leadModel->getContactFromRequest($query);
+        }
+        if(null !== $lead) {
+            $leadIpAddresses = $lead->getIpAddresses();
+            if (!$leadIpAddresses->contains($ipAddress)) {
+                $lead->addIpAddress($ipAddress);
+            }
+            $this->leadModel->saveEntity($lead);
+            $leadId = $lead->getId();
+        }
+        $pageId = null;
+        if (null !== $page) {
+            $pageId = $page->getId();
+        }
+        $pageType = null;
+        if($page instanceof Redirect) {
+            $pageType = 'redirect';
+        } else if ($page instanceof Page) {
+            $pageType = 'page';
+        }
+
+        $queue->publish(serialize([
+            'pageId'   => $pageId,
+            'pageType' => $pageType,
+            'request'  => QueueRequestHelper::flattenRequest($request),
+            'code'     => $code,
+            'leadId'   => $leadId,
+            'query'    => $query,
+            'ip'       => $ip
+        ]));
+    }
+
+    public function consumeHitPage($pageId, $pageType, Request $request, $code = '200', $leadId = null, $query = [], $ip = null)
+    {
+        $lead = null;
+        if(null !== $leadId) {
+            $lead = $this->leadModel->getEntity($leadId);
+            $this->leadModel->setCurrentLead($lead);
+        }
+        $page = null;
+        if($pageType === 'redirect') {
+            $page = $this->pageRedirectModel->getEntity($pageId);
+        } else if($pageType === 'page')  {
+            $page = $this->getEntity($pageId);
+        }
+        $this->hitPage($page, $request, $code, $lead, $query, $ip);
+    }
+
     /**
      * Record page hit.
      *
@@ -401,13 +493,8 @@ class PageModel extends FormModel
      *
      * @throws \Exception
      */
-    public function hitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
+    public function hitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [], $ip = null)
     {
-        // Don't skew results with user hits
-        if (!$this->security->isAnonymous()) {
-            return;
-        }
-
         // Process the query
         if (empty($query)) {
             $query = $this->getHitQuery($request, $page);
@@ -417,7 +504,7 @@ class PageModel extends FormModel
         $hit->setDateHit(new \Datetime());
 
         // Check for existing IP
-        $ipAddress = $this->ipLookupHelper->getIpAddress();
+        $ipAddress = $this->ipLookupHelper->getIpAddress($ip);
         $hit->setIpAddress($ipAddress);
 
         // Check for any clickthrough info
@@ -451,11 +538,6 @@ class PageModel extends FormModel
             }
         }
 
-        // Get lead if required
-        if (null == $lead) {
-            $lead = $this->leadModel->getContactFromRequest($query);
-        }
-
         if ($lead && !$lead->getId()) {
             // Lead came from a non-trackable IP so ignore
             return;
@@ -486,7 +568,7 @@ class PageModel extends FormModel
         }
 
         // Store tracking ID
-        list($trackingId, $trackingNewlyGenerated) = $this->leadModel->getTrackingCookie();
+        list($trackingId, $trackingNewlyGenerated) = $this->leadModel->getTrackingCookie(false, $request);
         $hit->setTrackingId($trackingId);
         $hit->setLead($lead);
 
