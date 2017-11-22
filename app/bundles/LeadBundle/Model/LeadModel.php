@@ -851,11 +851,14 @@ class LeadModel extends FormModel
      *
      * @return array|Lead|null
      */
-    public function getContactFromRequest($queryFields = [])
+    public function getContactFromRequest($queryFields = [], $request = null, $ip = null)
     {
+        if (null !== $request) {
+            $this->request = $request;
+        }
         $lead = null;
 
-        $ipAddress = $this->ipLookupHelper->getIpAddress();
+        $ipAddress = $this->ipLookupHelper->getIpAddress($ip);
 
         // Check for a lead requested through clickthrough query parameter
         if (isset($queryFields['ct'])) {
@@ -897,6 +900,9 @@ class LeadModel extends FormModel
         $uniqueLeadFields    = $this->leadFieldModel->getUniqueIdentiferFields();
         $uniqueLeadFieldData = [];
         $inQuery             = array_intersect_key($queryFields, $availableLeadFields);
+        if ($inQuery === null) {
+            $inQuery = [];
+        }
         foreach ($inQuery as $k => $v) {
             if (empty($queryFields[$k])) {
                 unset($inQuery[$k]);
@@ -1046,8 +1052,11 @@ class LeadModel extends FormModel
      *
      * @return array
      */
-    public function getTrackingCookie($forceRegeneration = false)
+    public function getTrackingCookie($forceRegeneration = false, $request = null)
     {
+        if (null === $this->request) {
+            $this->request = $request;
+        }
         static $trackingId = false, $generated = false;
 
         if ($forceRegeneration) {

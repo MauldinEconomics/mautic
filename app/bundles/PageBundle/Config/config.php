@@ -259,6 +259,7 @@ return [
                     'setCatInUrl' => [
                         '%mautic.cat_in_page_url%',
                     ],
+                    'setChannelHelper' => ['mauldin.scalability.message_queue.channel_helper'],
                 ],
             ],
             'mautic.page.model.redirect' => [
