@@ -36,6 +36,7 @@ use Mautic\PageBundle\Event\PageBuilderEvent;
 use Mautic\PageBundle\Event\PageEvent;
 use Mautic\PageBundle\Event\PageHitEvent;
 use Mautic\PageBundle\PageEvents;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueRequestHelper;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -48,6 +49,10 @@ class PageModel extends FormModel
     use TranslationModelTrait;
     use VariantModelTrait;
     use BuilderModelTrait;
+
+    const PAGE_HIT_QUEUE = 'page-hit';
+
+    protected $hitQueue = null;
 
     /**
      * @var bool
@@ -85,6 +90,11 @@ class PageModel extends FormModel
     protected $pageTrackableModel;
 
     /**
+     * @var ChannelHelper
+     */
+    protected $channelHelper;
+
+    /**
      * PageModel constructor.
      *
      * @param CookieHelper   $cookieHelper
@@ -117,6 +127,19 @@ class PageModel extends FormModel
     public function setCatInUrl($catInUrl)
     {
         $this->catInUrl = $catInUrl;
+    }
+
+    /**
+     * @param $channelHelper
+     */
+    public function setChannelHelper($channelHelper)
+    {
+        $this->channelHelper = $channelHelper;
+    }
+
+    public function getChannelHelper()
+    {
+        return $this->channelHelper;
     }
 
     /**
@@ -388,6 +411,55 @@ class PageModel extends FormModel
         return implode('/', $slugs);
     }
 
+    public function getPageHitQueue()
+    {
+        if ($this->hitQueue === null) {
+            $this->hitQueue = $this->getChannelHelper()->declareQueue(self::PAGE_HIT_QUEUE);
+        }
+        return $this->hitQueue;
+    }
+
+
+    public function queueHitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
+    {
+        $queue = $this->getPageHitQueue();
+        $leadId = null;
+        if(null !== $lead) {
+            $leadId = $lead->getId();
+        }
+        $pageId = $page->getId();
+        $pageType = null;
+        if($page instanceof Redirect) {
+            $pageType = 'redirect';
+        } else {
+            $pageType = 'page';
+        }
+
+        $queue->publish(serialize([
+            'pageId'   => $pageId,
+            'pageType' => $pageType,
+            'request'  => QueueRequestHelper::flattenRequest($request),
+            'code'     => $code,
+            'leadId'   => $leadId,
+            'query'    => $query
+        ]));
+    }
+
+    public function consumeHitPage($pageId, $pageType, Request $request, $code = '200', $leadId = null, $query = [])
+    {
+        $lead = null;
+        if(null !== $leadId) {
+            $lead = $this->leadModel->getEntity($leadId);
+        }
+        $page = null;
+        if($pageType === 'redirect') {
+            $page = $this->pageRedirectModel->getEntity($pageId);
+        } else {
+            $page = $this->getEntity($pageId);
+        }
+        $this->hitPage($page, $request, $code, $lead, $query);
+    }
+
     /**
      * Record page hit.
      *
@@ -453,7 +525,7 @@ class PageModel extends FormModel
 
         // Get lead if required
         if (null == $lead) {
-            $lead = $this->leadModel->getContactFromRequest($query);
+            $lead = $this->leadModel->getContactFromRequest($query, $request);
         }
 
         if ($lead && !$lead->getId()) {
@@ -486,7 +558,7 @@ class PageModel extends FormModel
         }
 
         // Store tracking ID
-        list($trackingId, $trackingNewlyGenerated) = $this->leadModel->getTrackingCookie();
+        list($trackingId, $trackingNewlyGenerated) = $this->leadModel->getTrackingCookie(false, $request);
         $hit->setTrackingId($trackingId);
         $hit->setLead($lead);
 
