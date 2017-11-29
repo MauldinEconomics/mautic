@@ -423,15 +423,29 @@ class PageModel extends FormModel
     public function queueHitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
     {
         $queue = $this->getPageHitQueue();
+        $ipAddress = $this->ipLookupHelper->getIpAddress();
+        $ip = $ipAddress->getIpAddress();
         $leadId = null;
+        // Get lead if required
+        if (null == $lead) {
+            $lead = $this->leadModel->getContactFromRequest($query);
+        }
         if(null !== $lead) {
+            $leadIpAddresses = $lead->getIpAddresses();
+            if (!$leadIpAddresses->contains($ipAddress)) {
+                $lead->addIpAddress($ipAddress);
+            }
+            $this->leadModel->saveEntity($lead);
             $leadId = $lead->getId();
         }
-        $pageId = $page->getId();
+        $pageId = null;
+        if (null !== $page) {
+            $pageId = $page->getId();
+        }
         $pageType = null;
         if($page instanceof Redirect) {
             $pageType = 'redirect';
-        } else {
+        } else if ($page instanceof Page) {
             $pageType = 'page';
         }
 
@@ -441,11 +455,12 @@ class PageModel extends FormModel
             'request'  => QueueRequestHelper::flattenRequest($request),
             'code'     => $code,
             'leadId'   => $leadId,
-            'query'    => $query
+            'query'    => $query,
+            'ip'       => $ip
         ]));
     }
 
-    public function consumeHitPage($pageId, $pageType, Request $request, $code = '200', $leadId = null, $query = [])
+    public function consumeHitPage($pageId, $pageType, Request $request, $code = '200', $leadId = null, $query = [], $ip = null)
     {
         $lead = null;
         if(null !== $leadId) {
@@ -454,10 +469,10 @@ class PageModel extends FormModel
         $page = null;
         if($pageType === 'redirect') {
             $page = $this->pageRedirectModel->getEntity($pageId);
-        } else {
+        } else if($pageType === 'page')  {
             $page = $this->getEntity($pageId);
         }
-        $this->hitPage($page, $request, $code, $lead, $query);
+        $this->hitPage($page, $request, $code, $lead, $query, $ip);
     }
 
     /**
@@ -473,7 +488,7 @@ class PageModel extends FormModel
      *
      * @throws \Exception
      */
-    public function hitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
+    public function hitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [], $ip = null)
     {
         // Don't skew results with user hits
         if (!$this->security->isAnonymous()) {
@@ -489,7 +504,7 @@ class PageModel extends FormModel
         $hit->setDateHit(new \Datetime());
 
         // Check for existing IP
-        $ipAddress = $this->ipLookupHelper->getIpAddress();
+        $ipAddress = $this->ipLookupHelper->getIpAddress($ip);
         $hit->setIpAddress($ipAddress);
 
         // Check for any clickthrough info
@@ -521,11 +536,6 @@ class PageModel extends FormModel
                     $hit->setEmail($emailEntity);
                 }
             }
-        }
-
-        // Get lead if required
-        if (null == $lead) {
-            $lead = $this->leadModel->getContactFromRequest($query, $request);
         }
 
         if ($lead && !$lead->getId()) {

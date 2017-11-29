@@ -49,7 +49,8 @@ class ProcessPageHitCommand extends QueueProcessingCommand
                 QueueRequestHelper::buildRequest($message['request']),
                 $message['code'],
                 $message['leadId'],
-                $message['query']
+                $message['query'],
+                $message['ip']
             );
 
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
