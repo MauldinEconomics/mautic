@@ -129,8 +129,14 @@ class SETRequestModel
      */
     public function requestCacheUpdate($listId)
     {
+        try {
+            $queue = $this->getTimeFinished($listId);
+        } catch (SETAPIException $e) {
+            $queue = true;
+        }
+
         // Only request a status update if there is not build already queued.
-        if ($this->getTimeFinished($listId)) {
+        if ($queue) {
             $this->apiCall('listbuild_queue', null, [], ['id' => $listId]);
             echo('    Update requested for: ' . $listId . PHP_EOL);
         } else {
@@ -142,18 +148,23 @@ class SETRequestModel
         return $result['name'];
     }
 
-    /*
-     * Returns the 'time_finished' value.
-     * If it is "falsy", it means there is some unfinished build.
+    /**
+     * Returns the 'time_finished' timestamp of the most recent build, or
+     * false if that build is unfinished.
      *
-     * @param int $listId: The id of the SET list
+     * @param int $listId The id of the SET list
      *
-     * @return maybe(datetime)
+     * @return int|bool
+     * @throws SETAPIException
+     *    When there aren't any builds for the list and therefore no status.
      */
     public function getTimeFinished($listId)
     {
         $result = $this->apiCall('listbuild_status', null, [], ['id' => $listId]);
-        return strtotime($result['time_finished']);
+
+        return !empty($result['time_finished'])
+            ? strtotime($result['time_finished'])
+            : false;
     }
 
     /*
