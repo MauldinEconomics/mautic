@@ -129,8 +129,14 @@ class SETRequestModel
      */
     public function requestCacheUpdate($listId)
     {
+        try {
+            $queue = $this->getTimeFinished($listId);
+        } catch (SETAPIException $e) {
+            $queue = true;
+        }
+
         // Only request a status update if there is not build already queued.
-        if ($this->getTimeFinished($listId)) {
+        if ($queue) {
             $this->apiCall('listbuild_queue', null, [], ['id' => $listId]);
             echo('    Update requested for: ' . $listId . PHP_EOL);
         } else {
@@ -142,34 +148,43 @@ class SETRequestModel
         return $result['name'];
     }
 
-    /*
-     * Returns the 'time_finished' value.
-     * If it is "falsy", it means there is some unfinished build.
+    /**
+     * Returns the 'time_finished' timestamp of the most recent build, or
+     * false if that build is unfinished.
      *
-     * @param int $listId: The id of the SET list
+     * @param int $listId The id of the SET list
      *
-     * @return maybe(datetime)
+     * @return int|bool
+     * @throws SETAPIException
+     *    When there aren't any builds for the list and therefore no status.
      */
     public function getTimeFinished($listId)
     {
         $result = $this->apiCall('listbuild_status', null, [], ['id' => $listId]);
-        return strtotime($result['time_finished']);
+
+        return !empty($result['time_finished'])
+            ? strtotime($result['time_finished'])
+            : false;
     }
 
-    /*
+    /**
      * A newer cache is available if the time it finished bulding is more
      * recent then the time the currently used cache was built.
      *
-     * @param int $listId: The id of the SET list
-     * @param datetime $lastUpdate: the datetime when the last cache build finished
+     * @param int $listId The id of the SET list
+     * @param int $lastUpdate The timestamp when the last cache build finished
      *
-     * Returns null if a newer cache is not available;
-     * otherwise, returns the $timeFinished of the new cache.
-     * @return maybe(datetime)
+     * @return int|null
+     *    Returns the time_finished timestamp of a build cache if one exists
+     *    and is newer than $lastUpdate, null otherwise.
      */
     public function isNewerCacheAvailable($listId, $lastUpdate)
     {
-        $timeFinished = $this->getTimeFinished($listId);
+        try {
+            $timeFinished = $this->getTimeFinished($listId);
+        } catch (SETAPIException $e) {
+            $timeFinished = false;
+        }
 
         if ($timeFinished && $timeFinished > $lastUpdate) {
             return $timeFinished;
