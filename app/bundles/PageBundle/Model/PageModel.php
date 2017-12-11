@@ -419,9 +419,13 @@ class PageModel extends FormModel
         return $this->hitQueue;
     }
 
-
     public function queueHitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
     {
+        // Don't skew results with user hits
+        if (!$this->security->isAnonymous()) {
+            return;
+        }
+
         $queue = $this->getPageHitQueue();
         $ipAddress = $this->ipLookupHelper->getIpAddress();
         $ip = $ipAddress->getIpAddress();
@@ -490,11 +494,6 @@ class PageModel extends FormModel
      */
     public function hitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [], $ip = null)
     {
-        // Don't skew results with user hits
-        if (!$this->security->isAnonymous()) {
-            return;
-        }
-
         // Process the query
         if (empty($query)) {
             $query = $this->getHitQuery($request, $page);
