@@ -469,6 +469,7 @@ class PageModel extends FormModel
         $lead = null;
         if(null !== $leadId) {
             $lead = $this->leadModel->getEntity($leadId);
+            $this->leadModel->setCurrentLead($lead);
         }
         $page = null;
         if($pageType === 'redirect') {
