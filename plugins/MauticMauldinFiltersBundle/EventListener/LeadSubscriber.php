@@ -81,6 +81,18 @@ class LeadSubscriber extends CommonSubscriber
                 ],
                 'operators' => $this->listModel->getOperatorsForFieldType('multiselect'),
             ]);
+
+        $event->addChoice(
+            'lead',
+            'lead_visited_page',
+            [   'label'      => $this->translator->trans('mauldin.lead.list.filter.lead_visited_page'),
+                'properties' => [
+                    'type' => 'select',
+                    'list' => $this->getAllPages(),
+                ],
+                'operators' => $this->listModel->getOperatorsForFieldType('multiselect'),
+            ]
+        );
     }
 
     /**
@@ -169,6 +181,39 @@ class LeadSubscriber extends CommonSubscriber
 
                 $event->setSubQuery(sprintf('%s (%s)', $func, $subQb->getSQL()));
                 break;
+
+            case 'lead_visited_page':
+                $alias = $this->generateRandomParameterName();
+                $func = in_array($func, ['eq', 'in']) ? 'EXISTS' : 'NOT EXISTS';
+
+                foreach($details['filter'] as &$value) {
+                    $value = (int) $value;
+                }
+
+                $subQb = $em->getConnection()->createQueryBuilder();
+                $subExpr = $subQb->expr()->andX(
+                    $subQb->expr()->eq($alias.'.lead_id', 'l.id')
+                );
+
+                // Specific lead
+                if (!empty($leadId)) {
+                    $subExpr->add(
+                        $subQb->expr()->eq($alias.'.lead_id', $leadId)
+                    );
+                }
+
+                $table = 'page_hits';
+                $column = 'page_id';
+
+                $subExpr->add(
+                    $subQb->expr()->in(sprintf('%s.%s', $alias, $column), $details['filter'])
+                );
+                $subQb->select('null')
+                      ->from(MAUTIC_TABLE_PREFIX.$table, $alias)
+                      ->where($subExpr);
+
+                $event->setSubQuery(sprintf('%s (%s)', $func, $subQb->getSQL()));
+                break;
         }
     }
     /**
@@ -179,5 +224,21 @@ class LeadSubscriber extends CommonSubscriber
         $alpha_numeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
         return substr(str_shuffle($alpha_numeric), 0, 8);
+    }
+
+    protected function getAllPages()
+    {
+        $q = $this->em->getConnection()->createQueryBuilder();
+        $q->select('t.id AS id, t.title AS name')
+          ->from(MAUTIC_TABLE_PREFIX.'pages', 't');
+
+        $pages = $q->execute()->fetchAll();
+
+        $result = [];
+        foreach($pages as $page) {
+            $result[$page['id']] = $page['name'];
+        }
+
+        return $result;
     }
 }
