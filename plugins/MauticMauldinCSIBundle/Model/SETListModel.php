@@ -29,7 +29,6 @@ class SETListModel
         $stmt->bindValue('id', $listId);
         $stmt->execute();
         $result = $stmt->fetchAll();
-        echo('      Setlist: ' . json_encode($result) . PHP_EOL);
     }
 
     /*
@@ -86,7 +85,6 @@ EOQ;
         $result = $stmt->fetchAll();
 
         if (! empty($result)) {
-            echo('    Update already requested for: ' . $listId . PHP_EOL);
             return;
         }
 
@@ -164,8 +162,6 @@ EOQ;
         $stmt->execute();
         $result = $stmt->fetchAll();
 
-        echo('    ' . $listId . ' cache valid: ' . json_encode(! empty($result)) . PHP_EOL);
-
         return ! empty($result);
     }
 
@@ -176,7 +172,6 @@ EOQ;
      */
     public function maybeUpdateCache($listId)
     {
-        echo('  Maybe update: ' . $listId . PHP_EOL);
         $this->log_setlist($listId);
 
         $lastUpdate = $this->_getLastUpdateDate($listId);
@@ -184,16 +179,13 @@ EOQ;
         // Check if new cache available
         $timeFinished = $this->setRequest->isNewerCacheAvailable($listId, $lastUpdate);
         if (null === $timeFinished) {
-            echo('    No update available' . PHP_EOL);
             return false;
         }
-        echo('    Newer cache available: ' . date("Y-m-d H:i:s", $timeFinished) . PHP_EOL);
 
         // Download new cache
         $emails = $this->setRequest->downloadCache($listId);
 
         if (null === $emails) {
-            echo('    No email list' . PHP_EOL);
             return false;
         }
 

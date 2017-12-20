@@ -137,8 +137,6 @@ class UpdateLeadListsCommand extends ModeratedCommand
                     error_log($e);
                 }
 
-                echo('Lists: ' . json_encode($result) . PHP_EOL);
-
                 $updated = [];
                 $notUpdated = [];
 
@@ -161,9 +159,6 @@ class UpdateLeadListsCommand extends ModeratedCommand
 
                     unset($l);
                 }
-
-                echo('Updated: ' . json_encode($updated) . PHP_EOL);
-                echo('Not updated: ' . json_encode($notUpdated) . PHP_EOL);
             }
 
             unset($lists);
@@ -186,8 +181,6 @@ class UpdateLeadListsCommand extends ModeratedCommand
      */
     protected function processSetDependencies($list)
     {
-        echo('Check SET deps for segment ' . $list->getId() . PHP_EOL);
-
         // Find SET dependencies
         $deps = [];
         foreach ($list->getFilters() as $filter) {
@@ -199,7 +192,6 @@ class UpdateLeadListsCommand extends ModeratedCommand
         if (empty($deps)) {
             return true;
         }
-        echo('  Deps: ' . json_encode($deps) . PHP_EOL);
 
         // Check if cache is valid
         $invalids = [];
