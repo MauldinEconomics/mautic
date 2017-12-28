@@ -154,21 +154,53 @@ class EventModelExtended extends EventModel
      *
      * @return array
      */
-    public function paginateLeadsStartingEvents($campaignId,  $start, $limit = false)
+    public function paginateLeadsStartingEvents($campaignId, $start, $limit, $pendingEvents, $count = null)
     {
         $q = $this->em->getConnection()->createQueryBuilder();
 
-        $q->select('cl.lead_id')
-            ->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
+        if ($count) {
+            $q->select('count(distinct cl.lead_id) as totalLeads, count(*) as totalEvents');
+        } else {
+            $q->select('cl.lead_id,group_concat(e.event_id) as event_ids');
+        }
+        $q->from(MAUTIC_TABLE_PREFIX.'campaign_leads', 'cl')
             ->where(
                 $q->expr()->andX(
                     $q->expr()->eq('cl.campaign_id', (int) $campaignId),
-                    $q->expr()->gt('cl.lead_id', (int) $start),
                     $q->expr()->eq('cl.manually_removed', ':false')
                 )
             )
             ->setParameter('false', false, 'boolean')
             ->orderBy('cl.lead_id', 'ASC');
+
+        $q->leftJoin('cl', MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'e', 'cl.lead_id = e.lead_id AND cl.campaign_id = e.campaign_id');
+        if ($start !== null) {
+            $q->andWhere($q->expr()->gt('cl.lead_id', (int) $start));
+        }
+        $check = [];
+        foreach ($pendingEvents as $e) {
+            // Only leads that have not started the campaign
+            $sq = $this->em->getConnection()->createQueryBuilder();
+
+            $sq->select('null')
+                ->from(MAUTIC_TABLE_PREFIX.'campaign_lead_event_log', 'e')
+                ->where(
+                    $sq->expr()->andX(
+                        $sq->expr()->eq('e.event_id', (int) $e),
+                        $sq->expr()->eq('cl.lead_id', 'e.lead_id'),
+                        $sq->expr()->eq('e.campaign_id', (int) $campaignId)
+                    )
+                );
+
+            $check[] = sprintf('NOT EXISTS (%s)', $sq->getSQL());
+        }
+        $q->andWhere($q->expr()->orX(...$check));
+
+        if (!empty($count)) {
+            return $q->execute()->fetch();
+        }
+
+        $q->groupBy('cl.lead_id');
 
         if (!empty($limit)) {
             $q->setMaxResults($limit);
@@ -178,7 +210,8 @@ class EventModelExtended extends EventModel
 
         $leads = [];
         foreach ($results as $r) {
-            $leads[] = $r['lead_id'];
+            $pending              = array_diff($pendingEvents, explode(',', $r['event_ids']));
+            $leads[$r['lead_id']] = $pending;
         }
 
         unset($results);
@@ -197,20 +230,20 @@ class EventModelExtended extends EventModel
         $owner = $this->userModel->getEntity($campaign->getCreatedBy());
         if ($owner != null) {
             $this->notificationModel->addNotification(
-                    $campaign->getName().' / '.$event['name'],
-                    'error',
-                    false,
-                    $this->translator->trans(
-                        'mautic.campaign.abtest.failed',
-                        [
-                            '%message%' => $fail,
-                            '%email%'   => $email->getName(),
-                        ]
-                    ),
-                    null,
-                    null,
-                    $owner
-                );
+                $campaign->getName().' / '.$event['name'],
+                'error',
+                false,
+                $this->translator->trans(
+                    'mautic.campaign.abtest.failed',
+                    [
+                        '%message%' => $fail,
+                        '%email%'   => $email->getName(),
+                    ]
+                ),
+                null,
+                null,
+                $owner
+            );
         }
     }
 
@@ -244,10 +277,6 @@ class EventModelExtended extends EventModel
 
         $repo         = $this->getRepository();
         $campaignRepo = $this->getCampaignRepository();
-        $queue        = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId, true);
-        if ($queue === null) {
-            return 0;
-        }
 
         $events         = $repo->getRootLevelEvents($campaignId);
         $rootEventCount = count($events);
@@ -264,11 +293,11 @@ class EventModelExtended extends EventModel
             ] : 0;
         }
 
-        // Get a lead count; if $leadId, then use this as a check to ensure lead is part of the campaign
-        $leadCount = $campaignRepo->getCampaignLeadCount($campaignId, $leadId, array_keys($events));
+        $count               = $this->paginateLeadsStartingEvents($campaignId, null, null, array_keys($events), true);
+        $leadCount           = $count['totalLeads'];
+        $totalStartingEvents = $count ['totalEvents'];
 
         // Get a total number of events that will be processed
-        $totalStartingEvents = $leadCount * $rootEventCount;
 
         if ($output) {
             $output->writeln(
@@ -279,7 +308,7 @@ class EventModelExtended extends EventModel
             );
         }
 
-        if (empty($leadCount)) {
+        if ($leadCount == 0) {
             $this->logger->debug('CAMPAIGN: No contacts to process');
 
             unset($events);
@@ -291,6 +320,11 @@ class EventModelExtended extends EventModel
                 'totalEvaluated' => 0,
                 'totalExecuted'  => 0,
             ] : 0;
+        }
+
+        $queue = $this->declareCampaignQueue(self::START_QUEUE_PREFIX, $campaignId, true);
+        if ($queue === null) {
+            return 0;
         }
 
         // Try to save some memory
@@ -344,17 +378,23 @@ class EventModelExtended extends EventModel
 
             //  Paginate the lead list limit  with the batch size
             if ($lastId == null) {
-                $campaignLeads = ($leadId) ? [$leadId] : $campaignRepo->getCampaignLeadIds($campaignId, 0, $limit, true);
+                $campaignLeads = ($leadId) ? [$leadId] : $this->paginateLeadsStartingEvents($campaignId, null, $limit, array_keys($events));
             } else {
                 $this->logger->debug('LAST BATCH ID #'.$lastId);
-                $campaignLeads = $this->paginateLeadsStartingEvents($campaignId, $lastId, $limit);
+                $campaignLeads = $this->paginateLeadsStartingEvents($campaignId, $lastId, $limit, array_keys($events));
             }
 
-            $queue->publish(serialize($campaignLeads));
+            $out = array_filter($campaignLeads, function ($var) {
+                return count($var) > 0;
+            });
+            if (count($out) > 0) {
+                $queue->publish(serialize($campaignLeads));
+            }
 
-            $lastId = array_values(array_slice($campaignLeads, -1))[0];
             $currentCount += count($campaignLeads);
             $totalEventCount += count($campaignLeads);
+            end($campaignLeads);
+            $lastId = key($campaignLeads);
             $progress->setProgress($currentCount);
         }
 
@@ -368,7 +408,7 @@ class EventModelExtended extends EventModel
         ];
         $this->logger->debug('CAMPAIGN: Counts - '.var_export($counts, true));
 
-        return  $counts;
+        return $counts;
     }
 
     /**
@@ -444,6 +484,8 @@ class EventModelExtended extends EventModel
             $logRepo
         ) {
             try {
+                $this->em->getConnection()->beginTransaction();
+                $this->emailModel->begin();
                 $campaignLeads = unserialize($msg->body);
                 if (!empty($campaignLeads)) {
                     $leads = $this->leadModel->getEntities(
@@ -453,7 +495,7 @@ class EventModelExtended extends EventModel
                                     [
                                         'column' => 'l.id',
                                         'expr'   => 'in',
-                                        'value'  => $campaignLeads,
+                                        'value'  => array_keys($campaignLeads),
                                     ],
                                 ],
                             ],
@@ -466,8 +508,6 @@ class EventModelExtended extends EventModel
 
                     /** @var \Mautic\LeadBundle\Entity\Lead $lead */
                     $leadDebugCounter = 1;
-                    $this->em->getConnection()->beginTransaction();
-                    $this->emailModel->begin();
 
                     foreach ($events as $event) {
                         if ($event['triggerMode'] == 'abtest') {
@@ -476,16 +516,17 @@ class EventModelExtended extends EventModel
                         }
                     }
 
-                    foreach ($leads as $idx => $lead) {
+                    foreach ($leads as $lead) {
                         $this->logger->debug('CAMPAIGN: Current Lead ID# '.$lead->getId().'; #'.$leadDebugCounter.' in batch #'.$batchDebugCounter);
 
                         // Set lead in case this is triggered by the system
                         $this->leadModel->setSystemCurrentLead($lead);
+                        foreach ($campaignLeads[$lead->getId()] as $eventId) {
+                            $event = $events[$eventId];
 
-                        foreach ($events as $event) {
                             $this->inSample = $sampleIndexes ?
-                                (isset($sampleIndexes[$event['id']]) ?
-                                    in_array($idx, $sampleIndexes[$event['id']]) :
+                                (isset($sampleIndexes[$eventId]) ?
+                                    in_array($lead->getId(), $sampleIndexes[$eventId]) :
                                     null) :
                                 null;
                             if ($event['eventType'] == 'decision') {
@@ -684,7 +725,7 @@ class EventModelExtended extends EventModel
      * @return int
      */
     public function triggerScheduledEventsSelect(
-        $campaign, &$totalEventCount, $limit, $max, OutputInterface $output = null,  $returnCounts = false
+        $campaign, &$totalEventCount, $limit, $max, OutputInterface $output = null, $returnCounts = false
     ) {
         defined('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED') or define('MAUTIC_CAMPAIGN_SYSTEM_TRIGGERED', 1);
 
@@ -791,7 +832,7 @@ class EventModelExtended extends EventModel
         for ($batchIdx = 0; $batchIdx < $batchCount; ++$batchIdx) {
             $this->logger->debug('CAMPAIGN: Batch #'.$batchIdx);
 
-            $events = $this->paginateLeadsScheduledEvents($campaignId, $lastLead,  $limit);
+            $events = $this->paginateLeadsScheduledEvents($campaignId, $lastLead, $limit);
 
             $msg = new AMQPMessage(serialize($events));
             $queue->publish($msg);
@@ -1111,7 +1152,7 @@ class EventModelExtended extends EventModel
 
                 $this->logger->debug('LAST BATCH ID #'.$lastLead);
 
-                $campaignLeads = $this->paginateLeadsNegativeEvents($campaignId, $lastLead,  $limit);
+                $campaignLeads = $this->paginateLeadsNegativeEvents($campaignId, $lastLead, $limit);
 
                 $campaignLeadIds   = [];
                 $campaignLeadDates = [];
