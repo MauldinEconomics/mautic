@@ -107,8 +107,9 @@ class StatRepository extends CommonRepository
         }
 
         if (true === $listId) {
-            $q->addSelect('s.list_id')
-                ->groupBy('s.list_id');
+            $q->addSelect('lll.leadlist_id')
+                ->leftJoin('s', MAUTIC_TABLE_PREFIX.'lead_lists_leads', 'lll', 'lll.lead_id = s.lead_id')
+                ->groupBy('lll.leadlist_id');
         } elseif ($listId) {
             $q->andWhere('s.list_id = '.(int) $listId);
         }
@@ -126,7 +127,7 @@ class StatRepository extends CommonRepository
             // Return list group of counts
             $byList = [];
             foreach ($results as $result) {
-                $byList[$result['list_id']] = $result['sent_count'];
+                $byList[$result['leadlist_id']] = $result['sent_count'];
             }
 
             return $byList;
@@ -159,8 +160,9 @@ class StatRepository extends CommonRepository
         }
 
         if (true === $listId) {
-            $q->addSelect('s.list_id')
-                ->groupBy('s.list_id');
+            $q->addSelect('lll.leadlist_id')
+                ->leftJoin('s', MAUTIC_TABLE_PREFIX.'lead_lists_leads', 'lll', 'lll.lead_id = s.lead_id')
+                ->groupBy('lll.leadlist_id');
         } elseif ($listId) {
             $q->andWhere('s.list_id = '.(int) $listId);
         }
@@ -178,7 +180,7 @@ class StatRepository extends CommonRepository
             // Return list group of counts
             $byList = [];
             foreach ($results as $result) {
-                $byList[$result['list_id']] = $result['read_count'];
+                $byList[$result['leadlist_id']] = $result['read_count'];
             }
 
             return $byList;
@@ -273,8 +275,9 @@ class StatRepository extends CommonRepository
         }
 
         if (true === $listId) {
-            $q->addSelect('s.list_id')
-                ->groupBy('s.list_id');
+            $q->addSelect('lll.leadlist_id')
+                ->leftJoin('s', MAUTIC_TABLE_PREFIX.'lead_lists_leads', 'lll', 'lll.lead_id = s.lead_id')
+                ->groupBy('lll.leadlist_id');
         } elseif ($listId) {
             $q->andWhere('s.list_id = '.(int) $listId);
         }
@@ -292,7 +295,7 @@ class StatRepository extends CommonRepository
             // Return list group of counts
             $byList = [];
             foreach ($results as $result) {
-                $byList[$result['list_id']] = $result['failed_count'];
+                $byList[$result['leadlist_id']] = $result['failed_count'];
             }
 
             return $byList;

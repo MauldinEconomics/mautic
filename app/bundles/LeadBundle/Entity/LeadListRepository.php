@@ -1167,7 +1167,7 @@ class LeadListRepository extends CommonRepository
                 $event = new LeadListFilteringEvent($details, $leadId, $alias, $func, $q, $this->_em);
                 $this->dispatcher->dispatch(LeadEvents::LIST_FILTERS_ON_FILTERING, $event);
                 if ($event->isFilteringDone()) {
-                    $groupExpr = $q->expr()->andX($event->getSubQuery());
+                    $groupExpr->add($q->expr()->andX($event->getSubQuery()));
                 }
             }
         }

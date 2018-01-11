@@ -50,7 +50,7 @@ class SubmissionRepository extends CommonRepository
 
         //DBAL
         if (!isset($args['viewOnlyFields'])) {
-            $args['viewOnlyFields'] = ['button', 'freetext', 'pagebreak', 'captcha'];
+            $args['viewOnlyFields'] = ['button', 'freetext', 'pagebreak', 'captcha', 'invisiblecaptcha'];
         }
         $viewOnlyFields = array_map(function ($value) {
             return '"'.$value.'"';
@@ -442,6 +442,27 @@ class SubmissionRepository extends CommonRepository
         $result = $q->execute()->fetch();
 
         return !empty($result['id']);
+    }
+
+    /**
+     * @param Form  $form
+     */
+    public function getSubmissionCounts($form)
+    {
+        $q = <<<EOQ
+SELECT
+        COUNT(s.id) AS total,
+        COUNT(DISTINCT (s.lead_id)) AS `unique`
+    FROM
+        form_submissions AS s
+    WHERE
+        s.form_id = :id
+EOQ;
+
+        $stmt = $this->_em->getConnection()->prepare($q);
+        $stmt->bindValue('id', $form->getId());
+        $stmt->execute();
+        return $stmt->fetch();
     }
 
     /**

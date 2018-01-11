@@ -28,6 +28,7 @@
             'id'            => $field['id'],
             'formId'        => $formId,
             'contactFields' => (isset($contactFields)) ? $contactFields : [],
+            'inWrapper'     => true,
         ]
     ); ?>
     </div>

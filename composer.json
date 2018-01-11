@@ -105,7 +105,13 @@
         "doctrine/data-fixtures": "1.2.1",
         "sonata-project/exporter": "^1.7",
         "lightsaml/sp-bundle": "~1.0.3",
-        "symfony/expression-language": "~2.8"
+        "symfony/expression-language": "~2.8",
+
+        "sendgrid/sendgrid": "~6",
+        "ocramius/proxy-manager": "~1.0.2",
+        "php-amqplib/php-amqplib": "~2.6",
+        "marcj/topsort": "~0.2",
+        "ggc/set-api-client": "^1.0"
     },
     "require-dev": {
         "symfony/web-profiler-bundle": "~2.8",
@@ -121,13 +127,16 @@
         {
             "type": "git",
             "url": "https://github.com/mautic/BazingaOAuthServerBundle.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/MauldinEconomics/set-api-client.git"
         }
     ],
     "scripts": {
         "post-install-cmd": [
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache",
-            "cp ./build/hooks/pre-commit ./.git/hooks/pre-commit"
+            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache"
         ],
         "post-update-cmd": [
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",

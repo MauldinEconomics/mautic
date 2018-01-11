@@ -16,6 +16,7 @@ use Mautic\CoreBundle\Controller\FormController;
 use Mautic\CoreBundle\Helper\InputHelper;
 use Mautic\PageBundle\Entity\Page;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Mautic\LeadBundle\Controller\EntityContactsTrait;
 
 /**
  * Class PageController.
@@ -23,6 +24,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class PageController extends FormController
 {
     use BuilderControllerTrait;
+    use EntityContactsTrait;
 
     /**
      * @param int $page
@@ -309,12 +311,20 @@ class PageController extends FormController
                         'unique' => $activePage->getUniqueHits(),
                     ],
                 ],
-                'abTestResults' => $abTestResults,
+                'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($activePage) : $abTestResults,
                 'security'      => $security,
                 'pageUrl'       => $model->generateUrl($activePage, true),
                 'previewUrl'    => $this->generateUrl('mautic_page_preview', ['id' => $objectId], true),
                 'logs'          => $logs,
                 'dateRangeForm' => $dateRangeForm->createView(),
+                'pageLeads'     => $this->forward(
+                    'MauticPageBundle:Page:contacts',
+                    [
+                        'objectId'   => $activePage->getId(),
+                        'page'       => $this->get('session')->get('mautic.page.contact.page', 1),
+                        'ignoreAjax' => true
+                    ]
+                )->getContent(),
             ],
             'contentTemplate' => 'MauticPageBundle:Page:details.html.php',
             'passthroughVars' => [
@@ -322,6 +332,19 @@ class PageController extends FormController
                 'mauticContent' => 'page',
             ],
         ]);
+    }
+
+    public function contactsAction($objectId, $page = 1)
+    {
+        return $this->generateContactsGrid(
+            $objectId,
+            $page,
+            'page:pages:view',
+            'page',
+            'page_hits',
+            null,
+            'page_id'
+        );
     }
 
     /**

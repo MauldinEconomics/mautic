@@ -20,6 +20,10 @@ return [
                 'path'       => '/pages/{objectAction}/{objectId}',
                 'controller' => 'MauticPageBundle:Page:execute',
             ],
+            'mautic_page_contacts' => [
+                'path'       => '/pages/view/{objectId}/contact/{page}',
+                'controller' => 'MauticPageBundle:Page:contacts',
+            ],
         ],
         'public' => [
             'mautic_page_tracker' => [
@@ -255,6 +259,7 @@ return [
                     'setCatInUrl' => [
                         '%mautic.cat_in_page_url%',
                     ],
+                    'setChannelHelper' => ['mauldin.scalability.message_queue.channel_helper'],
                 ],
             ],
             'mautic.page.model.redirect' => [

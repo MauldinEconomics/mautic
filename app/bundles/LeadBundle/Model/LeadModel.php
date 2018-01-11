@@ -851,8 +851,11 @@ class LeadModel extends FormModel
      *
      * @return array|Lead|null
      */
-    public function getContactFromRequest($queryFields = [])
+    public function getContactFromRequest($queryFields = [], $request = null)
     {
+        if(null !== $request) {
+            $this->request = $request;
+        }
         $lead = null;
 
         $ipAddress = $this->ipLookupHelper->getIpAddress();
@@ -1046,8 +1049,11 @@ class LeadModel extends FormModel
      *
      * @return array
      */
-    public function getTrackingCookie($forceRegeneration = false)
+    public function getTrackingCookie($forceRegeneration = false, $request = null)
     {
+        if (null === $this->request) {
+            $this->request = $request;
+        }
         static $trackingId = false, $generated = false;
 
         if ($forceRegeneration) {

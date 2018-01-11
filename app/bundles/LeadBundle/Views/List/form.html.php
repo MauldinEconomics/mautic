@@ -29,6 +29,7 @@ $templates = [
     'select'         => 'select-template',
     'lists'          => 'leadlist-template',
     'emails'         => 'lead_email_received-template',
+    'assets'         => 'assets-template',
     'tags'           => 'tags-template',
     'stage'          => 'stage-template',
     'locales'        => 'locale-template',
@@ -127,6 +128,9 @@ $filterErrors = ($view['form']->containsErrors($form['filters'])) ? 'class="text
         <div class="pr-lg pl-lg pt-md pb-md">
             <?php echo $view['form']->row($form['isGlobal']); ?>
             <?php echo $view['form']->row($form['isPublished']); ?>
+        </div>
+        <div class="pr-lg pl-lg pt-md pb-md">
+            <?php echo $view['form']->row($form['updateInterval']); ?>
         </div>
     </div>
 </div>

@@ -115,6 +115,22 @@ $view['slots']->set(
                         <table class="table table-bordered table-striped mb-0">
                             <tbody>
                             <?php echo $view->render('MauticCoreBundle:Helper:details.html.php', ['entity' => $activePage]); ?>
+                            <tr>
+                                <td width="20%">
+                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.page.stat.page_hits'); ?></span>
+                                </td>
+                                <td>
+                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
+                                        echo $activePage->getUniqueHits() - $activePage->getVariantHits();
+                                        echo $view['translator']->trans('mautic.page.stat.before_rollout',
+                                            ['%count%' => $activePage->getVariantHits()]
+                                        );
+                                        echo ' / ' . $activePage->getHits();
+                                    } else {
+                                        echo $activePage->getUniqueHits() . ' / ' . $activePage->getHits();
+                                    } ?>
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -181,6 +197,13 @@ $view['slots']->set(
                         </a>
                     </li>
                 <?php endif; ?>
+                <?php if($showVariants || $showTranslations): ?>
+                <li>
+                    <a href="#leads-container" role="tab" data-toggle="tab">
+                        <?php echo $view['translator']->trans('mautic.page.leads'); ?>
+                    </a>
+                </li>
+                <? endif; ?>
             </ul>
             <!--/ tabs controls -->
         </div>
@@ -202,6 +225,12 @@ $view['slots']->set(
             </div>
             <?php endif; ?>
             <!--/ #translation-container -->
+            <!-- #leads-container -->
+            <div id="leads-container" class="tab-pane fade in bdr-w-0 page-list">
+                <?php echo $pageLeads; ?>
+                <div class="clearfix"></div>
+            </div>
+            <!--/ #leads-container  -->
         </div>
         <!--/ end: tab-content -->
         <?php elseif ($allowAbTest): ?>
@@ -212,6 +241,10 @@ $view['slots']->set(
                         <?php echo $view['translator']->trans('mautic.core.ab_test.create'); ?> <i class="fa fa-angle-right"></i>
                     </a>
                 </h3>
+            </div>
+            <div id="leads-container" class="active tab-pane fade in bdr-w-0 page-list">
+                <?php echo $pageLeads; ?>
+                <div class="clearfix"></div>
             </div>
         </div>
         <?php endif; ?>

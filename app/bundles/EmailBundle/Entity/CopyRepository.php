@@ -32,8 +32,8 @@ class CopyRepository extends CommonRepository
         try {
             $body    = EmojiHelper::toShort($body);
             $subject = EmojiHelper::toShort($subject);
-            $db->insert(
-                MAUTIC_TABLE_PREFIX.'email_copies',
+            $db->executeQuery(
+                'INSERT IGNORE INTO '. MAUTIC_TABLE_PREFIX.'email_copies'.' VALUES (:id,:date_created,:body,:subject)',
                 [
                     'id'           => $hash,
                     'body'         => $body,

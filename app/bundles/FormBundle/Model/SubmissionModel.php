@@ -214,6 +214,17 @@ class SubmissionModel extends CommonFormModel
                 continue;
             }
 
+            if ($type === 'invisiblecaptcha') {
+                $value = $request->get("g-recaptcha-response");
+                $captcha = $this->fieldHelper->validateFieldValue($type, $value, $f);
+                if (!empty($captcha)) {
+                    $props = $f->getProperties();
+                    //check for a custom message
+                    $validationErrors[$alias] = (!empty($props['errorMessage'])) ? $props['errorMessage'] : implode('<br />', $captcha);
+                }
+                continue;
+            }
+
             if ($f->isRequired() && empty($value)) {
 
                 //field is required, but hidden from form because of 'ShowWhenValueExists'
@@ -928,8 +939,18 @@ class SubmissionModel extends CommonFormModel
             }
         }
 
+        // Also set lead as newly created if it had no email before.
+        // This is a workaround a problem where the form submission does not
+        // track the lead as newly created, because the lead exists (but has
+        // no email).
+        $hadNoEmail = null === $lead->getEmail();
+
         //set the mapped fields
         $this->leadModel->setFieldValues($lead, $data, false, true, true);
+
+        if ($hadNoEmail && null !== $lead->getEmail()) {
+            $lead->setNewlyCreated(true);
+        }
 
         if (!empty($event)) {
             $event->setIpAddress($ipAddress);
