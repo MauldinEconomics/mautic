@@ -138,9 +138,6 @@ class SETRequestModel
         // Only request a status update if there is not build already queued.
         if ($queue) {
             $this->apiCall('listbuild_queue', null, [], ['id' => $listId]);
-            echo('    Update requested for: ' . $listId . PHP_EOL);
-        } else {
-            echo('    Listbuild already queued for: ' . $listId . PHP_EOL);
         }
 
         $result = $this->apiCall('list', null, [], ['id' => $listId]);
