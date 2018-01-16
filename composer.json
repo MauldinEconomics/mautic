@@ -107,11 +107,13 @@
         "lightsaml/sp-bundle": "~1.0.3",
         "symfony/expression-language": "~2.8",
 
-        "sendgrid/sendgrid": "~6",
-        "ocramius/proxy-manager": "~1.0.2",
-        "php-amqplib/php-amqplib": "~2.6",
-        "marcj/topsort": "~0.2",
-        "ggc/set-api-client": "^1.0"
+        "mauldin/mautic-mauldin-category-summary-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-clicks-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-csi-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-email-scalability-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-filters-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-rabbitmq-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-tree-view-bundle": "^1.0.0"
     },
     "require-dev": {
         "symfony/web-profiler-bundle": "~2.8",
@@ -124,14 +126,16 @@
         "symfony/var-dumper": "^3.2"
     },
     "repositories": [
-        {
-            "type": "git",
-            "url": "https://github.com/mautic/BazingaOAuthServerBundle.git"
-        },
-        {
-            "type": "git",
-            "url": "https://github.com/MauldinEconomics/set-api-client.git"
-        }
+        { "type": "git", "url": "https://github.com/mautic/BazingaOAuthServerBundle.git" },
+
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/set-api-client" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-category-summary-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-clicks-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-csi-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-filters-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-tree-view-bundle" }
     ],
     "scripts": {
         "post-install-cmd": [
@@ -145,7 +149,8 @@
         ]
     },
     "config": {
-        "bin-dir": "bin"
+        "bin-dir": "bin",
+        "secure-http": false
     },
     "extra": {
         "symfony-app-dir": "app",

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "66314168029d3d2511a73b1a59a5f668",
+    "content-hash": "bd61b09a44258dc4c3b4ee30a76df954",
     "packages": [
         {
             "name": "aws/aws-sdk-php",
@@ -1508,11 +1508,17 @@
         },
         {
             "name": "ggc/set-api-client",
-            "version": "v1.0.0",
+            "version": "v1.0.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/MauldinEconomics/set-api-client.git",
-                "reference": "effce5b926cd31c401fd2ca1fa122f0b31eef18d"
+                "url": "git@github.com:MauldinEconomics/set-api-client.git",
+                "reference": "35ea4e257d3b80635e37d1d369c2f2bb3f68c0a5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/set-api-client/zipball/35ea4e257d3b80635e37d1d369c2f2bb3f68c0a5",
+                "reference": "35ea4e257d3b80635e37d1d369c2f2bb3f68c0a5",
+                "shasum": ""
             },
             "require": {
                 "guzzlehttp/psr7": "^1.3",
@@ -1547,7 +1553,11 @@
                 }
             ],
             "description": "Client library for the Subscriber Email Tool API",
-            "time": "2017-06-23T03:12:10+00:00"
+            "support": {
+                "source": "https://github.com/MauldinEconomics/set-api-client/tree/v1.0.1",
+                "issues": "https://github.com/MauldinEconomics/set-api-client/issues"
+            },
+            "time": "2017-11-14T22:01:45+00:00"
         },
         {
             "name": "giggsey/libphonenumber-for-php",
@@ -2619,7 +2629,7 @@
                     "homepage": "http://github.com/knplabs/Gaufrette/contributors"
                 },
                 {
-                    "name": "KNPLabs Team",
+                    "name": "KnpLabs Team",
                     "homepage": "http://knplabs.com"
                 }
             ],
@@ -3023,6 +3033,245 @@
                 "topsort"
             ],
             "time": "2015-06-17T11:08:53+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-category-summary-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-category-summary-bundle.git",
+                "reference": "b5e7e236c0a05d48d9d9169b81a4ca29119d0793"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-category-summary-bundle/zipball/b5e7e236c0a05d48d9d9169b81a4ca29119d0793",
+                "reference": "b5e7e236c0a05d48d9d9169b81a4ca29119d0793",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Add category listing page to Mautic",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-category-summary-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-category-summary-bundle/issues"
+            },
+            "time": "2018-01-12T12:45:23+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-clicks-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-clicks-bundle.git",
+                "reference": "4cb0f6b318c75eb7a6dadd0b8961dfc06c81a7c1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-clicks-bundle/zipball/4cb0f6b318c75eb7a6dadd0b8961dfc06c81a7c1",
+                "reference": "4cb0f6b318c75eb7a6dadd0b8961dfc06c81a7c1",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Track clicks on links in Mautic emails",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-clicks-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-clicks-bundle/issues"
+            },
+            "time": "2018-01-12T12:49:18+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-csi-bundle",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-csi-bundle.git",
+                "reference": "e725adc95f13d5019b51cd625692fc9c00033ffc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-csi-bundle/zipball/e725adc95f13d5019b51cd625692fc9c00033ffc",
+                "reference": "e725adc95f13d5019b51cd625692fc9c00033ffc",
+                "shasum": ""
+            },
+            "require": {
+                "ggc/set-api-client": "^1.0",
+                "mauldin/mautic-mauldin-email-scalability-bundle": "^1.0.0",
+                "mautic/composer-plugin": "*",
+                "php-amqplib/php-amqplib": "~2.6"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Integrate Mautic segments with CSI lists",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-csi-bundle/tree/v1.0.2",
+                "issues": "https://github.com/MauldinEconomics/mautic-csi-bundle/issues"
+            },
+            "time": "2018-01-23T11:31:18+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-email-scalability-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-email-scalability-bundle.git",
+                "reference": "bf8681a7f46b46187117dc793ca2e7b15457b5f7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-email-scalability-bundle/zipball/bf8681a7f46b46187117dc793ca2e7b15457b5f7",
+                "reference": "bf8681a7f46b46187117dc793ca2e7b15457b5f7",
+                "shasum": ""
+            },
+            "require": {
+                "marcj/topsort": "~0.2",
+                "mautic/composer-plugin": "*",
+                "ocramius/proxy-manager": "~1.0.2",
+                "php-amqplib/php-amqplib": "~2.6",
+                "sendgrid/sendgrid": "~6",
+                "symfony/proxy-manager-bridge": "~3.3"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Improve scalability of Mautic by queueing event handling",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle/issues"
+            },
+            "time": "2018-01-16T12:51:43+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-filters-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-filters-bundle.git",
+                "reference": "454c6fbe0cd7b46a0ce31a628c23b9a27533ef1a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-filters-bundle/zipball/454c6fbe0cd7b46a0ce31a628c23b9a27533ef1a",
+                "reference": "454c6fbe0cd7b46a0ce31a628c23b9a27533ef1a",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Provides additional lead list filters to Mautic",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-filters-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-filters-bundle/issues"
+            },
+            "time": "2018-01-12T12:44:02+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-rabbitmq-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-rabbitmq-bundle.git",
+                "reference": "04911fe573ad0f59a40a1099cf53f3d3c81c5f6b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-rabbitmq-bundle/zipball/04911fe573ad0f59a40a1099cf53f3d3c81c5f6b",
+                "reference": "04911fe573ad0f59a40a1099cf53f3d3c81c5f6b",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Provides a RabbitMQ status page in Mautic",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle/issues"
+            },
+            "time": "2018-01-12T12:44:11+00:00"
+        },
+        {
+            "name": "mauldin/mautic-mauldin-tree-view-bundle",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-tree-view-bundle.git",
+                "reference": "2707da6642f32404fd03379debcbf4a5a27c2bb5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-tree-view-bundle/zipball/2707da6642f32404fd03379debcbf4a5a27c2bb5",
+                "reference": "2707da6642f32404fd03379debcbf4a5a27c2bb5",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Add a tree view of action stats to Mautic campaign pages",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-tree-view-bundle/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-tree-view-bundle/issues"
+            },
+            "time": "2018-01-12T12:44:24+00:00"
+        },
+        {
+            "name": "mautic/composer-plugin",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mautic/composer-plugin.git",
+                "reference": "27d2474ae8e39d30d28908d6f818e71fe32b8443"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mautic/composer-plugin/zipball/27d2474ae8e39d30d28908d6f818e71fe32b8443",
+                "reference": "27d2474ae8e39d30d28908d6f818e71fe32b8443",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0"
+            },
+            "require-dev": {
+                "composer/composer": "^1.5"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Mautic\\Composer\\InstallerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Mautic\\Composer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "time": "2017-12-10T22:16:22+00:00"
         },
         {
             "name": "maxmind-db/reader",
@@ -6911,6 +7160,60 @@
             "time": "2016-07-30T07:20:35+00:00"
         },
         {
+            "name": "symfony/proxy-manager-bridge",
+            "version": "v3.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/proxy-manager-bridge.git",
+                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/proxy-manager-bridge/zipball/bf998071bf4b457d185ba4deb3add9cb982f1e48",
+                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48",
+                "shasum": ""
+            },
+            "require": {
+                "ocramius/proxy-manager": "~0.4|~1.0|~2.0",
+                "php": ">=5.5.9",
+                "symfony/dependency-injection": "~2.8|~3.0"
+            },
+            "require-dev": {
+                "symfony/config": "~2.8|~3.0"
+            },
+            "type": "symfony-bridge",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.3-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Bridge\\ProxyManager\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony ProxyManager Bridge",
+            "homepage": "https://symfony.com",
+            "time": "2017-05-24T16:13:59+00:00"
+        },
+        {
             "name": "symfony/routing",
             "version": "v2.8.15",
             "source": {
@@ -7898,7 +8201,7 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/mautic/BazingaOAuthServerBundle.git",
-                "reference": "81834da2cddeb7f21873ae2da76fdccd1e530920"
+                "reference": "d4d2e94bb69c20ae4a5fc136c0fe40253368787e"
             },
             "require": {
                 "php": ">=5.3.3",
@@ -7934,7 +8237,7 @@
                 "oauth",
                 "server"
             ],
-            "time": "2016-08-18T17:10:55+00:00"
+            "time": "2017-05-10T00:39:21+00:00"
         },
         {
             "name": "zendframework/zend-code",
@@ -9129,60 +9432,6 @@
             ],
             "description": "This bundle generates code for you",
             "time": "2016-12-05T16:01:19+00:00"
-        },
-        {
-            "name": "symfony/proxy-manager-bridge",
-            "version": "v3.3.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/proxy-manager-bridge.git",
-                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/proxy-manager-bridge/zipball/bf998071bf4b457d185ba4deb3add9cb982f1e48",
-                "reference": "bf998071bf4b457d185ba4deb3add9cb982f1e48",
-                "shasum": ""
-            },
-            "require": {
-                "ocramius/proxy-manager": "~0.4|~1.0|~2.0",
-                "php": ">=5.5.9",
-                "symfony/dependency-injection": "~2.8|~3.0"
-            },
-            "require-dev": {
-                "symfony/config": "~2.8|~3.0"
-            },
-            "type": "symfony-bridge",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "3.3-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Bridge\\ProxyManager\\": ""
-                },
-                "exclude-from-classmap": [
-                    "/Tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Fabien Potencier",
-                    "email": "fabien@symfony.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony ProxyManager Bridge",
-            "homepage": "https://symfony.com",
-            "time": "2017-05-24T16:13:59+00:00"
         },
         {
             "name": "symfony/var-dumper",
