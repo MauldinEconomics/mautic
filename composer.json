@@ -105,7 +105,15 @@
         "doctrine/data-fixtures": "1.2.1",
         "sonata-project/exporter": "^1.7",
         "lightsaml/sp-bundle": "~1.0.3",
-        "symfony/expression-language": "~2.8"
+        "symfony/expression-language": "~2.8",
+
+        "mauldin/mautic-mauldin-category-summary-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-clicks-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-csi-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-email-scalability-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-filters-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-rabbitmq-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-tree-view-bundle": "^1.0.0"
     },
     "require-dev": {
         "symfony/web-profiler-bundle": "~2.8",
@@ -118,16 +126,21 @@
         "symfony/var-dumper": "^3.2"
     },
     "repositories": [
-        {
-            "type": "git",
-            "url": "https://github.com/mautic/BazingaOAuthServerBundle.git"
-        }
+        { "type": "git", "url": "https://github.com/mautic/BazingaOAuthServerBundle.git" },
+
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/set-api-client" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-category-summary-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-clicks-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-csi-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-filters-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-tree-view-bundle" }
     ],
     "scripts": {
         "post-install-cmd": [
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache",
-            "cp ./build/hooks/pre-commit ./.git/hooks/pre-commit"
+            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache"
         ],
         "post-update-cmd": [
             "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
@@ -136,7 +149,8 @@
         ]
     },
     "config": {
-        "bin-dir": "bin"
+        "bin-dir": "bin",
+        "secure-http": false
     },
     "extra": {
         "symfony-app-dir": "app",
