@@ -21,6 +21,7 @@ class ProcessCSISurveyResultCommand extends QueueProcessingCommand
 {
     const CSI_SURVEY_ENDPOINT = 'survey/postAttributes';
 
+    private $csiEnv;
     private $csiRequest;
 
     /**
@@ -40,6 +41,7 @@ class ProcessCSISurveyResultCommand extends QueueProcessingCommand
     {
         $container = $this->getContainer();
 
+        $this->csiEnv     = $container->getParameter('mautic.csiapi_env');
         $this->csiRequest = $container->get('mautic.mauldin.csi.request');
 
         $dispatcher     = $container->get('event_dispatcher');
@@ -71,7 +73,7 @@ class ProcessCSISurveyResultCommand extends QueueProcessingCommand
      */
     public function sendSurveyResultToCSI($data)
     {
-        $urlParts = [self::CSI_SURVEY_ENDPOINT];
+        $urlParts = [self::CSI_SURVEY_ENDPOINT, $this->csiEnv];
         $this->csiRequest->simpleGet($urlParts, $data);
     }
 
