@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "bd61b09a44258dc4c3b4ee30a76df954",
+    "content-hash": "23c252e2634bf755feb0f4f97097b56f",
     "packages": [
         {
             "name": "aws/aws-sdk-php",
@@ -3033,6 +3033,45 @@
                 "topsort"
             ],
             "time": "2015-06-17T11:08:53+00:00"
+        },
+        {
+            "name": "mauldin/mauldin-basic-email",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:MauldinEconomics/mautic-basic-email-theme.git",
+                "reference": "5839d01e946678c587938b9a53faf1e6398a0a5d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MauldinEconomics/mautic-basic-email-theme/zipball/5839d01e946678c587938b9a53faf1e6398a0a5d",
+                "reference": "5839d01e946678c587938b9a53faf1e6398a0a5d",
+                "shasum": ""
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-theme",
+            "extra": {
+                "branch-alias": {
+                    "dev-develop": "1.0.x-dev"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Jan Linke",
+                    "email": "jan@mauldineconomics.com"
+                }
+            ],
+            "description": "MauldinEconomics Basic Email Theme",
+            "support": {
+                "source": "https://github.com/MauldinEconomics/mautic-basic-email-theme/tree/v1.0.0",
+                "issues": "https://github.com/MauldinEconomics/mautic-basic-email-theme/issues"
+            },
+            "time": "2018-01-23T12:56:22+00:00"
         },
         {
             "name": "mauldin/mautic-mauldin-category-summary-bundle",
