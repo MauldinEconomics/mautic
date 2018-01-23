@@ -119,7 +119,8 @@
         "mauldin/mautic-mauldin-email-scalability-bundle": "^1.0.0",
         "mauldin/mautic-mauldin-filters-bundle": "^1.0.0",
         "mauldin/mautic-mauldin-rabbitmq-bundle": "^1.0.0",
-        "mauldin/mautic-mauldin-tree-view-bundle": "^1.0.0"
+        "mauldin/mautic-mauldin-tree-view-bundle": "^1.0.0",
+        "mauldin/mauldin-basic-email": "^1.0.0"
     },
     "require-dev": {
         "symfony/web-profiler-bundle": "~2.8",
@@ -146,7 +147,8 @@
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-filters-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle" },
-        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-tree-view-bundle" }
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-tree-view-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-basic-email-theme" }
     ],
     "scripts": {
         "post-install-cmd": [
