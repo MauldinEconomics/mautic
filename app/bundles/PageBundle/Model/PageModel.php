@@ -469,6 +469,9 @@ class PageModel extends FormModel
         $lead = null;
         if(null !== $leadId) {
             $lead = $this->leadModel->getEntity($leadId);
+            if($lead === null){
+                $lead = $this->leadModel->getContactFromRequest($query === null ?  [] : $query,$request);
+            }
             $this->leadModel->setCurrentLead($lead);
         }
         $page = null;
