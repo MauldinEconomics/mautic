@@ -15,8 +15,8 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\EmailBundle\Swiftmailer\Exception\BatchQueueMaxException;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
-use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueRequestHelper;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueReference;
+use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\QueueRequestHelper;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\Transport\MemoryTransactionInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -28,13 +28,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
 {
     const BROADCAST_EMAIL_QUEUE = 'broadcast-email';
-    const EMAIL_HIT_QUEUE = 'email-hit';
+    const EMAIL_HIT_QUEUE       = 'email-hit';
 
     protected $hitQueue = null;
     protected $channelHelper;
     protected $notificationModel;
-    protected $counter = [];
-    protected $channel = null;
+    protected $counter   = [];
+    protected $channel   = null;
     private $transaction = null;
 
     /**
@@ -78,7 +78,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
             return false;
         }
 
-        $this->mailHelper->getTransport()->setCurrentEmailId($email->getId());
+        $this->mailHelper->getTransport()->setCurrentEmail($email);
 
         $singleEmail = false;
         if (isset($leads['id'])) {
@@ -264,6 +264,9 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
                         $mailer->setTokens($tokens);
                     }
 
+                    if (method_exists($this->mailHelper->getTransport(), 'setCurrentLead')) {
+                        $this->mailHelper->getTransport()->setCurrentLead($contact);
+                    }
                     $mailer->setLead($contact);
                     $mailer->setIdHash($idHash);
 
@@ -640,11 +643,12 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         );
     }
 
-    private function maybeRequestEC2Helper($what, $count) {
+    private function maybeRequestEC2Helper($what, $count)
+    {
         $cmd = "mauldin-aws-helper $what $count";
-        echo($cmd . PHP_EOL);
+        echo $cmd.PHP_EOL;
         $result = shell_exec($cmd);
-        echo($result . PHP_EOL);
+        echo $result.PHP_EOL;
     }
 
     /**
@@ -693,7 +697,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         $totalPendingCount = $this->getPendingLeads($email, null, true, null, true, null, false);
 
         if ($isSampling) {
-            $sendAlreadyCount = $this->getPendingLeads($email, null, true, null, true, null, true);
+            $sendAlreadyCount  = $this->getPendingLeads($email, null, true, null, true, null, true);
             $totalPendingCount = floor($email->getSampleSize() * ($sendAlreadyCount + $totalPendingCount) / 100) - $sendAlreadyCount;
         }
 
@@ -865,13 +869,15 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
      *
      * @return QueueReference
      */
-    public function sendEmailToListsConsume($email, $output= null)
+    public function sendEmailToListsConsume($email, $output = null)
     {
         /** @var QueueReference $queue */
         $queue = $this->declareQueue($email, false);
         if ($queue === null) {
-            if($output)
+            if ($output) {
                 $output->writeln('queue does not exist');
+            }
+
             return null;
         }
 
@@ -1020,6 +1026,7 @@ class QueuedEmailModel extends EmailModel implements MemoryTransactionInterface
         if ($this->hitQueue === null) {
             $this->hitQueue = $this->getChannelHelper()->declareQueue(self::EMAIL_HIT_QUEUE);
         }
+
         return $this->hitQueue;
     }
 
