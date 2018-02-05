@@ -36,20 +36,19 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
     private $transaction = false;
     private $logs        = [];
 
-    /*
-     * Id of the current email being sent.
-     * Used for enabling logging of the actual sending.
-     * @var int
-     */
-    private $currentEmailId = null;
+    private $currentEmail;
+
+    private $currentLead = [];
 
     /*
-     * Set the current email id.
-     *
-     * @param int $id Id of the entity of the current email being sent.
+     * Set the current email entity.
      */
-    public function setCurrentEmailId($id) {
-        $this->currentEmailId = $id;
+    /**
+     * @param $entity of the current email being sent
+     */
+    public function setCurrentEmail($lead)
+    {
+        $this->currentEmail = $lead;
     }
 
     /** {@inheritdoc} */
@@ -59,19 +58,22 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
     }
 
     /**
-     * This are not used in production, since we use the Sendgrid API
+     * This are not used in production, since we use the Sendgrid API.
      */
-    public function isStarted() {
+    public function isStarted()
+    {
         if ($this->mode !== 'sendgrid_api') {
             return parent::isStarted();
         }
+
         return true;
     }
 
     /**
-     * This are not used in production, since we use the Sendgrid API
+     * This are not used in production, since we use the Sendgrid API.
      */
-    public function start() {
+    public function start()
+    {
         if ($this->mode !== 'sendgrid_api') {
             return parent::start();
         }
@@ -105,15 +107,31 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
             throw new \RuntimeException('TransportQueue missing from '.self::class);
         }
 
+        if ($this->currentEmail !== null) {
+            $publishDate = $this->currentEmail->getPublishUp();
+            $publishDate = $publishDate === null ? new \DateTime() : $publishDate;
+            $msg         = serialize([
+                'category' => [
+                    'campaign_code' => $this->currentEmail->getCategory() === null ? null : $this->currentEmail->getCategory()->getAlias(),
+                    'subject'       => $this->currentEmail->getSubject(),
+                    'send_date'     => $publishDate->format('Y-m-d'),
+                    'lead_id'       => $this->currentLead['id'],
+                    'mautic'        => true, ],
+                'emailId'  => $this->currentEmail->getId(),
+                'emailMsg' => $message, ]);
+        } else {
+            $msg = serialize([
+                'emailId' => null, 'emailMsg' => $message, ]);
+        }
         if (!$this->transaction) {
             try {
-                $this->queue->publish(serialize(['emailId' => $this->currentEmailId, 'emailMsg' => $message]));
+                $this->queue->publish($msg);
             } catch (\Exception $e) {
                 error_log($e);
                 throw new \Swift_TransportException('Failed to publish message to queue', 0, $e);
             }
         } else {
-            $this->logs [] = serialize(['emailId' => $this->currentEmailId, 'emailMsg' => $message]);
+            $this->logs[] = $msg;
         }
 
         return 1;
@@ -127,23 +145,26 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
      *
      * @throws \Swift_TransportException
      */
-    public function sendDirect(\Swift_Message $message, &$failedRecipients = null)
+    public function sendDirect(\Swift_Message $message, $category = null)
     {
-        switch($this->mode) {
+        switch ($this->mode) {
             case 'sendgrid_api':
-                # Get email data
+                // Get email data
                 $fromA = $message->getFrom();
-                $emailValue = reset($fromA);
+                $emailValue    = reset($fromA);
 
-                # Workaround for calling a private method from Swift_Mailer
-                $reflection_class = new ReflectionClass("Swift_Message");
-                $reflection_method = $reflection_class->getMethod("_becomeMimePart");
+                // Workaround for calling a private method from Swift_Mailer
+                $reflection_class = new ReflectionClass('Swift_Message');
+                $reflection_method        = $reflection_class->getMethod('_becomeMimePart');
                 $reflection_method->setAccessible(true);
-                $result = $reflection_method->invoke($message, NULL);
+                $result = $reflection_method->invoke($message, null);
 
                 $mail = new OpenMail(new Email($emailValue, key($fromA)), $message->getSubject());
 
                 $personalization = new Personalization();
+                if ($category) {
+                    $mail->addCategory(json_encode($category));
+                }
                 // Add to
                 foreach ($message->getTo() as $k => $v) {
                     $personalization->addTo(new Email($v, $k));
@@ -157,7 +178,7 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
                 }
 
                 // Add cc
-                if($message->getCc()) {
+                if ($message->getCc()) {
                     foreach ($message->getCc() as $v) {
                         $personalization->addCc(new Email(null, $v));
                     }
@@ -169,36 +190,34 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
                 /** @var \Swift_Mime_SimpleMimeEntity $v */
                 foreach (array_reverse($message->getChildren()) as $v) {
                     if ($v->getBody() !== '') {
-                        self::addContent($mail,$v);
+                        self::addContent($mail, $v);
                     }
                 }
                 self::addContent($mail, $result);
 
                 $sg = new SendGrid($this->apiKey);
 
-                # Setup Sendgrid connection
-                $sg = new SendGrid($this->apiKey);
                 $settings = new SendGrid\MailSettings();
                 $settings->setSandboxMode(['enable' => $this->isSandbox()]);
                 $mail->setMailSettings($settings);
-
                 $response = $sg->client->mail()->send()->post($mail);
 
-                if($response->statusCode() == 200 || $response->statusCode() == 202) {
+                if ($response->statusCode() == 200 || $response->statusCode() == 202) {
                     return true;
                 } else {
-                    throw new Exception('Sendgrid API error code='. $response->statusCode(). ' message = '. $response->body());
+                    throw new Exception('Sendgrid API error code='.$response->statusCode().' message = '.$response->body());
                 }
 
             case 'smtp':
                 return parent::send($message, $failedRecipients);
 
             default:
-                throw  new Exception('transport mode not supported: '. $this->mode);
+                throw  new Exception('transport mode not supported: '.$this->mode);
         }
     }
 
-    public static function addContent($mail,$v){
+    public static function addContent($mail, $v)
+    {
         if ($v->getNestingLevel() == \Swift_Mime_MimeEntity::LEVEL_MIXED) {
             $attach = new SendGrid\Attachment();
             $attach->setContent(base64_encode($v->getBody()));
@@ -304,10 +323,17 @@ class RabbitmqTransport extends \Swift_SmtpTransport implements QueuedTransportI
         $this->sandbox = $sandbox === null ? false : $sandbox;
     }
 
+    /**
+     * @param mixed $currentLead
+     */
+    public function setCurrentLead($currentLead)
+    {
+        $this->currentLead = $currentLead;
+    }
 }
 
-class OpenMail extends Mail {
-
+class OpenMail extends Mail
+{
     // Create new constructor
     public function __construct($from, $subject)
     {
