@@ -27,7 +27,7 @@
         for (var i = forms.length - 1; i >= 0; i--) {
             var e = forms[i];
             var form_id = e.getAttribute("id");
-            if (e.hasAttribute("data-mautic-form") || form_id.indexOf('subscribe_form_') >= 0) {
+            if (e.hasAttribute("data-mautic-form") || form_id.indexOf('subscribe_form') >= 0) {
             	out.push(e);
             }
         }
@@ -68,10 +68,7 @@
         window.onLoadCallCount = window.onLoadCallCount || 0;
         window.onLoadCallCount += 1;
         var forms = getAllValidForms();
-        /*    if(forms.length > window.onLoadCallCount) {
-         return;
-         }
-         */
+	
         for (var i = 0; i < forms.length; i++) {
             var f = forms[i];
             (function (f) {
@@ -102,7 +99,7 @@
                     f["grecaptcha_index"] = window.grecaptcha_config[f.id]["last"];
 
 
-                } else if(form_id.indexOf('subscribe_form_') >= 0){
+                } else if(form_id.indexOf('subscribe_form') >= 0){
 		    var ajaxCallback;
 		    if(f.hasAttribute("data-ajax-callback")) {
 			ajaxCallback = f.getAttribute("data-ajax-callback");
