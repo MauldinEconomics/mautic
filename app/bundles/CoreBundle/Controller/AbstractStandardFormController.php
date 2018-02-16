@@ -487,6 +487,10 @@ abstract class AbstractStandardFormController extends AbstractFormController
             $model->lockEntity($entity);
         }
 
+        if ($entity instanceof \Mautic\CampaignBundle\Entity\Campaign) {
+            $form->get('buttons')->remove('apply');
+        }
+
         $delegateArgs = [
             'viewParameters' => [
                 'permissionBase'  => $this->getPermissionBase(),
