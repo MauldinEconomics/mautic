@@ -43,7 +43,16 @@ if ($support['data']) {
         mQuery('#abStatsModal').on('shown.bs.modal', function (event) {
             var canvas = document.getElementById("abtest-bar-chart");
             var barData = mQuery.parseJSON('<?php echo str_replace('\'', '\\\'', json_encode($chart->render())); ?>');
-            var barGraph = new Chart(canvas, {type: 'bar', data: barData});
+            var options = {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            };
+            var barGraph = new Chart(canvas, {type: 'bar', data: barData, options: options});
         });
     });
 </script>
