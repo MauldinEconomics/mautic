@@ -35,6 +35,7 @@ if (!isset($inBuilder)) {
             'contactFields' => (isset($contactFields)) ? $contactFields : [],
             'companyFields' => (isset($companyFields)) ? $companyFields : [],
             'inBuilder'     => $inBuilder,
+            'inWrapper'     => true,
         ]
     );
     ?>
