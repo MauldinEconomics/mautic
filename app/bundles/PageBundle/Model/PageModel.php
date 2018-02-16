@@ -499,7 +499,7 @@ class PageModel extends FormModel
             }
 
             // Check if this is a unique page hit
-            $isUnique = $this->getHitRepository()->isUniquePageHit($page, $trackingId);
+            $isUnique = $this->getHitRepository()->isUniquePageHit($page, $trackingId, $lead);
         }
 
         if (!empty($page)) {
