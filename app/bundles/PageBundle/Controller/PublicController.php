@@ -437,8 +437,10 @@ class PublicController extends CommonFormController
         // Get query string
         $query = $this->request->query->all();
 
-        // Unset the clickthrough
-        unset($query['ct']);
+        // Unset the clickthrough if url is external to Mautic
+        if (strpos($url, $this->getParameter('mautic.site_url')) !== 0) {
+            unset($query['ct']);
+        }
 
         // Tak on anything left to the URL
         if (count($query)) {
