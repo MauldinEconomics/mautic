@@ -369,7 +369,9 @@ class ListModel extends FormModel
                     [
                         'include' => [
                             '=',
+                            '!=',
                             'like',
+                            '!like',
                             'regexp',
                         ],
                     ]
