@@ -14,6 +14,7 @@ $container->loadFromExtension("framework", array(
         "cache" => "apc"
     )
 ));
+*/
 
 $container->loadFromExtension("doctrine", array(
     "orm" => array(
@@ -22,7 +23,6 @@ $container->loadFromExtension("doctrine", array(
         "query_cache_driver"    => "apc"
     )
 ));
-*/
 
 $debugMode = $container->hasParameter('mautic.debug') ? $container->getParameter('mautic.debug') : $container->getParameter('kernel.debug');
 
