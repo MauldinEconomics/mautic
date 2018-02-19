@@ -60,6 +60,10 @@ class EventType extends AbstractType
                 'date'      => 'mautic.campaign.form.type.date',
             ];
 
+            if (isset($options['data']['type']) && in_array($options['data']['type'], ['email.send'])) {
+                $choices['abtest'] = 'mautic.campaign.form.type.abtest';
+            }
+
             if ('no' == $options['data']['anchor'] && 'condition' != $options['data']['anchorEventType']
                 && 'condition' != $options['data']['eventType']
             ) {
@@ -146,6 +150,23 @@ class EventType extends AbstractType
                     'data'        => $data,
                 ]
             );
+            if (isset($options['data']['type']) && in_array($options['data']['type'], ['email.send'])) {
+
+                $data = (empty($options['data']['sampleSize'])) ? 25 : $options['data']['sampleSize'];
+
+                $builder->add(
+                    'sampleSize',
+                    'number',
+                    [
+                        'label' => 'mautic.campaign.event.sample_size',
+                        'attr' => [
+                            'class' => 'form-control',
+                            'preaddon' => 'symbol-percentage',
+                        ],
+                        'data' => $data,
+                    ]
+                );
+            }
         }
 
         if (!empty($options['settings']['formType'])) {

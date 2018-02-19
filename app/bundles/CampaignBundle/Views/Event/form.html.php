@@ -28,12 +28,11 @@
     <?php if (isset($form['triggerMode'])): ?>
     <div<?php echo $hideTriggerMode ? ' class="hide"' : ''; ?>>
         <?php echo $view['form']->row($form['triggerMode']); ?>
-
-        <div<?php echo ($form['triggerMode']->vars['data'] != 'date') ? ' class="hide"' : ''; ?> id="triggerDate">
+        <?php $triggerMode = $form['triggerMode']->vars['data'] ?>
+        <div<?php echo !in_array($triggerMode ,['date','abtest']) ? ' class="hide"' : ''; ?> id="triggerDate">
             <?php echo $view['form']->row($form['triggerDate']); ?>
         </div>
-
-        <div<?php echo ($form['triggerMode']->vars['data'] != 'interval') ? ' class="hide"' : ''; ?> id="triggerInterval">
+        <div<?php echo !in_array($triggerMode, ['interval','abtest']) ? ' class="hide"' : ''; ?> id="triggerInterval">
             <div class="row">
                 <div class="col-sm-4">
                     <?php echo $view['form']->row($form['triggerInterval']); ?>
@@ -42,6 +41,11 @@
                     <?php echo $view['form']->row($form['triggerIntervalUnit']); ?>
                 </div>
             </div>
+        </div>
+        <div  <?php echo !in_array($triggerMode, ['abtest']) ? ' class="hide"' : ''; ?> id="sampleSize">
+            <?php if (isset($form['sampleSize'])): ?>
+                    <?php echo $view['form']->row($form['sampleSize']); ?>
+            <?php endif; ?>
         </div>
     </div>
     <?php endif; ?>

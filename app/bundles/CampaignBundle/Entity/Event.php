@@ -83,6 +83,11 @@ class Event
     private $triggerMode;
 
     /**
+     * @var int
+     */
+    private $sampleSize;
+
+    /**
      * @var Campaign
      */
     private $campaign;
@@ -203,6 +208,10 @@ class Event
             ->length(10)
             ->nullable()
             ->build();
+        $builder->createField('sampleSize', 'integer')
+            ->columnName('sample_size')
+            ->nullable()
+            ->build();
 
         $builder->createManyToOne('campaign', 'Campaign')
             ->inversedBy('events')
@@ -275,6 +284,7 @@ class Event
                     'triggerInterval',
                     'triggerIntervalUnit',
                     'triggerMode',
+                    'sampleSize',
                     'decisionPath',
                     'channel',
                     'channelId',
@@ -307,6 +317,7 @@ class Event
                      'triggerInterval',
                      'triggerIntervalUnit',
                      'triggerMode',
+                     'sampleSize',
                      'children',
                      'parent',
                      'decisionPath',
@@ -327,6 +338,7 @@ class Event
                     'triggerInterval',
                     'triggerIntervalUnit',
                     'triggerMode',
+                    'sampleSize',
                     'decisionPath',
                     'order',
                     'parent',
@@ -836,5 +848,21 @@ class Event
         $this->contactLog[] = $contactLog;
 
         return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getSampleSize()
+    {
+        return $this->sampleSize;
+    }
+
+    /**
+     * @param int $sampleSize
+     */
+    public function setSampleSize( $sampleSize)
+    {
+        $this->sampleSize = $sampleSize;
     }
 }
