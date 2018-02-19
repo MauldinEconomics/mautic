@@ -948,22 +948,31 @@ Mautic.campaignToggleTimeframes = function() {
         var immediateChecked = mQuery('#campaignevent_triggerMode_0').prop('checked');
         var intervalChecked = mQuery('#campaignevent_triggerMode_1').prop('checked');
         var dateChecked = mQuery('#campaignevent_triggerMode_2').prop('checked');
+        var abtestChecked = mQuery('#campaignevent_triggerMode_3').prop('checked');
     } else {
         var immediateChecked = false;
         var intervalChecked = mQuery('#campaignevent_triggerMode_0').prop('checked');
         var dateChecked = mQuery('#campaignevent_triggerMode_1').prop('checked');
+        var abtestChecked = mQuery('#campaignevent_triggerMode_2').prop('checked');
     }
 
     if (mQuery('#campaignevent_triggerInterval').length) {
         if (immediateChecked) {
             mQuery('#triggerInterval').addClass('hide');
             mQuery('#triggerDate').addClass('hide');
+            mQuery('#sampleSize').addClass('hide');
         } else if (intervalChecked) {
             mQuery('#triggerInterval').removeClass('hide');
             mQuery('#triggerDate').addClass('hide');
+            mQuery('#sampleSize').addClass('hide');
         } else if (dateChecked) {
             mQuery('#triggerInterval').addClass('hide');
             mQuery('#triggerDate').removeClass('hide');
+            mQuery('#sampleSize').addClass('hide');
+        } else if (abtestChecked) {
+            mQuery('#triggerInterval').removeClass('hide');
+            mQuery('#triggerDate').removeClass('hide');
+            mQuery('#sampleSize').removeClass('hide');
         }
     }
 };
