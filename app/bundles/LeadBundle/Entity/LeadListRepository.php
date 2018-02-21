@@ -879,6 +879,7 @@ class LeadListRepository extends CommonRepository
                             break;
                         case 'like':
                         case '!like':
+                        case 'notLike':
                             $details['filter'] = '%'.$details['filter'].'%';
                             $subqb->where(
                                 $q->expr()->andX(
