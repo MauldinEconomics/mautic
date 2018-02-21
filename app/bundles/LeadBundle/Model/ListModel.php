@@ -373,7 +373,6 @@ class ListModel extends FormModel
                             'like',
                             '!like',
                             'regexp',
-                            '!regexp',
                         ],
                     ]
                 ),
