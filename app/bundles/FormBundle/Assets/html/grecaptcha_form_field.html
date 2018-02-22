@@ -1,73 +1,116 @@
 <script type="text/javascript">
-window.grecaptcha_config = window.grecaptcha_config || {};
+    window.grecaptcha_config = window.grecaptcha_config || {};
 
-window.getOnCaptchaCallback = window.getOnCaptchaCallback || function(formTag) {
-    return function(token) {
-        MauticSDK.validateForm(formTag.getAttribute("data-mautic-form"), true);
-        formTag.submit();
-        var captchaToReset = window.grecaptcha_config[formTag.id]["list"][formTag["grecaptcha_index"]];
-        grecaptcha.reset(captchaToReset);
-    }
-}
+    var mauticRecaptchaSiteKey = "%s";
 
-window.getSubmitButtons = window.getSubmitButtons || function(node) {
-    var q = [];
-    q.push(node);
-    out = []
-    while(q.length > 0) {
-        var e = q.shift();
-        if (e.tagName === "BUTTON" && e.type === "submit") {
-            out.push(e);
-        }
-        var children = e.childNodes;
-        for(j = children.length-1; j >= 0 ; j--) {
-            q.push(children[j]);
-        }
-    }
-    return out;
-};
-
-getAllValidForms = function() {
-    var forms = document.getElementsByTagName("form");
-    var out = []
-
-    for (var i = forms.length-1; i >= 0 ; i--) {
-        var e = forms[i];
-        if(e.hasAttribute("data-mautic-form")) {
-            out.push(e);
-        }
-    }
-    return out;
-}
-
-onloadCallback = window.onloadCallback || function() {
-    window.onLoadCallCount = window.onLoadCallCount || 0;
-    window.onLoadCallCount +=1;
-    var forms = getAllValidForms();
-    if(forms.length > window.onLoadCallCount) {
-        return;
-    }
-
-    for(var i = 0; i < forms.length; i++) {
-            var f = forms[i];
-            var button = getSubmitButtons(f)[0];
-            var captchaId = grecaptcha.render(
-                button,
-                {
-                    "sitekey": "%s",
-                    "theme":"light",
-                    "type":"image",
-                    "callback": window.getOnCaptchaCallback(f)
-                });
-            if (window.grecaptcha_config[f.id] === undefined) {
-               window.grecaptcha_config[f.id] = { "list": [captchaId] , "last": 0};
-            }else{
-               window.grecaptcha_config[f.id]["list"].push(captchaId);
-               window.grecaptcha_config[f.id]["last"] += 1;
+    window.getSubmitButtons = window.getSubmitButtons || function (node) {
+        var q = [];
+        q.push(node);
+        out = [];
+        while (q.length > 0) {
+            var e = q.shift();
+            if (e.tagName === "BUTTON" && e.type === "submit") {
+            	out.push(e);
             }
-            f["grecaptcha_index"] = window.grecaptcha_config[f.id]["last"];
-      }
-}
+            var children = e.childNodes;
+            for (j = children.length - 1; j >= 0; j--) {
+            	q.push(children[j]);
+            }
+        }
+        return out;
+    };
+
+    getAllValidForms = function () {
+        var forms = document.getElementsByTagName("form");
+        var out = []
+
+        for (var i = forms.length - 1; i >= 0; i--) {
+            var e = forms[i];
+            var form_id = e.getAttribute("id");
+            if (e.hasAttribute("data-mautic-form") || form_id.indexOf('subscribe_form') >= 0) {
+            	out.push(e);
+            }
+        }
+        return out;
+    }
+    window.nonMauticFormCallback = window.nonMauticFormCallback || function nonMauticFormCallback(form, captchaElem, ajaxCallback) {
+        var captchaId = grecaptcha.render(
+            captchaElem,
+            {
+                "sitekey": mauticRecaptchaSiteKey,
+                "theme": "light",
+                "type": "image",
+                "callback": function () {
+		    if(typeof(ajaxCallback) != 'undefined') {
+			ajaxCallback(form, captchaElem);
+		    } else {
+			HTMLFormElement.prototype.submit.call(form)
+		    }
+                }
+            });
+
+        var newEl = document.createElement('input');
+        newEl.setAttribute('name', 'g-recaptcha-invisible');
+        newEl.setAttribute('type', 'hidden');
+        newEl.setAttribute('value', '1');
+
+        captchaElem.parentNode.insertBefore(newEl, captchaElem.nextSibling);
+
+        form.onsubmit = function (evt) {
+            evt.preventDefault();
+            if (grecaptcha.getResponse(captchaId) != '') {
+                grecaptcha.reset(captchaId);
+            }
+          	grecaptcha.execute(captchaId);
+        };
+    }
+    onloadCallback = window.onloadCallback || function () {
+        window.onLoadCallCount = window.onLoadCallCount || 0;
+        window.onLoadCallCount += 1;
+        var forms = getAllValidForms();
+	
+        for (var i = 0; i < forms.length; i++) {
+            var f = forms[i];
+            (function (f) {
+                var button = getSubmitButtons(f)[0];
+                var form_id = f.getAttribute("id");
+
+                if (f.hasAttribute("data-mautic-form")) {
+                    var captchaId = grecaptcha.render(
+                        button,
+                        {
+                        "sitekey": mauticRecaptchaSiteKey,
+                        "theme": "light",
+                        "type": "image",
+                        "callback": function () {
+
+                            MauticSDK.validateForm(f.getAttribute("data-mautic-form"), true);
+                            f.submit();
+                            var captchaToReset = window.grecaptcha_config[f.id]["list"][f["grecaptcha_index"]];
+                            grecaptcha.reset(captchaToReset);
+                        }
+                        });
+                    if (window.grecaptcha_config[f.id] === undefined) {
+                        window.grecaptcha_config[f.id] = {"list": [captchaId], "last": 0};
+                    } else {
+                        window.grecaptcha_config[f.id]["list"].push(captchaId);
+                        window.grecaptcha_config[f.id]["last"] += 1;
+                    }
+                    f["grecaptcha_index"] = window.grecaptcha_config[f.id]["last"];
+
+
+                } else if(form_id.indexOf('subscribe_form') >= 0){
+		    var ajaxCallback;
+		    if(f.hasAttribute("data-ajax-callback")) {
+			ajaxCallback = f.getAttribute("data-ajax-callback");
+		    }
+		    if (typeof (nonMauticFormCallback) == 'function') {
+                        nonMauticFormCallback(f, button, ajaxCallback);
+                    }
+                }
+            })(f);
+        }
+    }
 </script>
 
-<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer> </script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit"></script>

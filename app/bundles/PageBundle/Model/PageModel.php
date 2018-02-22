@@ -50,7 +50,8 @@ class PageModel extends FormModel
     use VariantModelTrait;
     use BuilderModelTrait;
 
-    const PAGE_HIT_QUEUE = 'page-hit';
+    const PAGE_HIT_QUEUE       = 'page-hit';
+    const ERROR_PAGE_HIT_QUEUE = 'error-page-hit';
 
     protected $hitQueue = null;
 
@@ -411,12 +412,18 @@ class PageModel extends FormModel
         return implode('/', $slugs);
     }
 
-    public function getPageHitQueue()
+    public function getPageHitQueue($queueName = self::PAGE_HIT_QUEUE)
     {
         if ($this->hitQueue === null) {
-            $this->hitQueue = $this->getChannelHelper()->declareQueue(self::PAGE_HIT_QUEUE);
+            $this->hitQueue = $this->getChannelHelper()->declareQueue($queueName);
         }
+
         return $this->hitQueue;
+    }
+
+    public function getErrorPageHitQueue()
+    {
+        return $this->getChannelHelper()->declareQueue(self::ERROR_PAGE_HIT_QUEUE);
     }
 
     public function queueHitPage($page, Request $request, $code = '200', Lead $lead = null, $query = [])
@@ -426,15 +433,15 @@ class PageModel extends FormModel
             return;
         }
 
-        $queue = $this->getPageHitQueue();
+        $queue     = $this->getPageHitQueue();
         $ipAddress = $this->ipLookupHelper->getIpAddress();
-        $ip = $ipAddress->getIpAddress();
-        $leadId = null;
+        $ip        = $ipAddress->getIpAddress();
+        $leadId    = null;
         // Get lead if required
         if (null == $lead) {
-            $lead = $this->leadModel->getContactFromRequest($query);
+            $lead = $this->leadModel->getContactFromRequest($query === null ? [] : $query);
         }
-        if(null !== $lead) {
+        if (null !== $lead) {
             $leadIpAddresses = $lead->getIpAddresses();
             if (!$leadIpAddresses->contains($ipAddress)) {
                 $lead->addIpAddress($ipAddress);
@@ -447,9 +454,9 @@ class PageModel extends FormModel
             $pageId = $page->getId();
         }
         $pageType = null;
-        if($page instanceof Redirect) {
+        if ($page instanceof Redirect) {
             $pageType = 'redirect';
-        } else if ($page instanceof Page) {
+        } elseif ($page instanceof Page) {
             $pageType = 'page';
         }
 
@@ -460,24 +467,30 @@ class PageModel extends FormModel
             'code'     => $code,
             'leadId'   => $leadId,
             'query'    => $query,
-            'ip'       => $ip
+            'ip'       => $ip,
         ]));
     }
 
     public function consumeHitPage($pageId, $pageType, Request $request, $code = '200', $leadId = null, $query = [], $ip = null)
     {
-        $lead = null;
-        if(null !== $leadId) {
-            $lead = $this->leadModel->getEntity($leadId);
-            $this->leadModel->setCurrentLead($lead);
-        }
-        $page = null;
-        if($pageType === 'redirect') {
-            $page = $this->pageRedirectModel->getEntity($pageId);
-        } else if($pageType === 'page')  {
-            $page = $this->getEntity($pageId);
-        }
-        $this->hitPage($page, $request, $code, $lead, $query, $ip);
+        $this->em->transactional(function () use ($pageId, $pageType, $request, $code, $leadId, $query, $ip) {
+            $lead = null;
+            if (null !== $leadId) {
+                $lead = $this->leadModel->getEntity($leadId);
+                if ($lead === null) {
+                    $lead = $this->leadModel->getContactFromRequest($query === null ? [] : $query, $request, $ip);
+                } else {
+                    $this->leadModel->setCurrentLead($lead);
+                }
+            }
+            $page = null;
+            if ($pageType === 'redirect') {
+                $page = $this->pageRedirectModel->getEntity($pageId);
+            } elseif ($pageType === 'page') {
+                $page = $this->getEntity($pageId);
+            }
+            $this->hitPage($page, $request, $code, $lead, $query, $ip);
+        });
     }
 
     /**
