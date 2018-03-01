@@ -41,8 +41,8 @@
                 "theme": "light",
                 "type": "image",
                 "callback": function () {
-		    if(typeof(ajaxCallback) != 'undefined') {
-			ajaxCallback(form, captchaElem);
+		    if(typeof(window[ajaxCallback]) == 'function') {
+			window[ajaxCallback](form, captchaElem);
 		    } else {
 			HTMLFormElement.prototype.submit.call(form)
 		    }
