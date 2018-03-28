@@ -112,6 +112,7 @@
         "mauldin/mautic-mauldin-csi-bundle": "^1.0.0",
         "mauldin/mautic-mauldin-email-scalability-bundle": "^1.0.0",
         "mauldin/mautic-mauldin-filters-bundle": "^1.0.0",
+        "mauldin/mautic-mauldin-lead-affiliate-bundle": "^1.0.0@dev",
         "mauldin/mautic-mauldin-rabbitmq-bundle": "^1.0.0",
         "mauldin/mautic-mauldin-tree-view-bundle": "^1.0.0",
         "mauldin/mauldin-basic-email": "^1.0.0"
@@ -128,13 +129,13 @@
     },
     "repositories": [
         { "type": "git", "url": "https://github.com/mautic/BazingaOAuthServerBundle.git" },
-
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/set-api-client" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-category-summary-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-clicks-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-csi-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-email-scalability-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-filters-bundle" },
+        { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-lead-affiliate-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-rabbitmq-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-tree-view-bundle" },
         { "type": "vcs", "url": "https://github.com/MauldinEconomics/mautic-basic-email-theme" }
