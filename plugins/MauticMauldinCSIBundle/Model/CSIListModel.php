@@ -23,10 +23,11 @@ class CSIListModel
 
     const CSI_LIST_QUEUE = 'csi_list';
 
-    public function __construct(ListModel $listModel, ChannelHelper $channelHelper)
+    public function __construct(ListModel $listModel, ChannelHelper $channelHelper, LeadAffiliateModel $leadAffiliateModel)
     {
         $this->listModel     = $listModel;
         $this->channelHelper = $channelHelper;
+        $this->leadAffiliateModel = $leadAffiliateModel;
     }
 
     public function getQueue(){
@@ -38,6 +39,7 @@ class CSIListModel
 
     public function addToList(Lead $lead, array $addTo)
     {
+        $leadAffiliateRepository = $leadAffiliateModel->getRepository()
         $addIfNotNull = function (& $array, $tag) use ($lead) {
             $v = $lead->getFieldValue($tag);
             if ($v) {
@@ -52,6 +54,8 @@ class CSIListModel
             foreach (self::COOKIES_NAMES as $name){
                 $addIfNotNull($message['add'], $name);
             }
+
+            $message['add']['affiliate_id'] = $leadAffiliateRepository->getLeadFOF($lead);
 
             $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }
