@@ -111,7 +111,8 @@
         "ocramius/proxy-manager": "~1.0.2",
         "php-amqplib/php-amqplib": "~2.6",
         "marcj/topsort": "~0.2",
-        "ggc/set-api-client": "^1.0"
+        "ggc/set-api-client": "^1.0",
+        "mauldin/mautic-mauldin-lead-affiliate-bundle": "^1.0.0@dev"
     },
     "require-dev": {
         "symfony/web-profiler-bundle": "~2.8",
@@ -124,6 +125,10 @@
         "symfony/var-dumper": "^3.2"
     },
     "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/MauldinEconomics/mautic-lead-affiliate-bundle.git"
+        },
         {
             "type": "git",
             "url": "https://github.com/mautic/BazingaOAuthServerBundle.git"

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "66314168029d3d2511a73b1a59a5f668",
+    "content-hash": "e197897a527aa09fd6f5dcf8704320ad",
     "packages": [
         {
             "name": "aws/aws-sdk-php",
@@ -3025,6 +3025,64 @@
             "time": "2015-06-17T11:08:53+00:00"
         },
         {
+            "name": "mauldin/mautic-mauldin-lead-affiliate-bundle",
+            "version": "dev-develop",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/MauldinEconomics/mautic-lead-affiliate-bundle.git",
+                "reference": "83947507c7bf4d9b31992b322480b3a1c7a418af"
+            },
+            "require": {
+                "mautic/composer-plugin": "*"
+            },
+            "type": "mautic-plugin",
+            "extra": {
+                "branch-alias": {
+                    "dev-develop": "1.0.x-dev"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Associates affiliate code with the lead it came in on",
+            "time": "2018-03-28T12:20:46+00:00"
+        },
+        {
+            "name": "mautic/composer-plugin",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mautic/composer-plugin.git",
+                "reference": "27d2474ae8e39d30d28908d6f818e71fe32b8443"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mautic/composer-plugin/zipball/27d2474ae8e39d30d28908d6f818e71fe32b8443",
+                "reference": "27d2474ae8e39d30d28908d6f818e71fe32b8443",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0"
+            },
+            "require-dev": {
+                "composer/composer": "^1.5"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Mautic\\Composer\\InstallerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Mautic\\Composer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "time": "2017-12-10T22:16:22+00:00"
+        },
+        {
             "name": "maxmind-db/reader",
             "version": "v1.1.2",
             "source": {
@@ -4175,6 +4233,7 @@
                 "xls",
                 "xlsx"
             ],
+            "abandoned": "phpoffice/phpspreadsheet",
             "time": "2015-05-01T07:00:55+00:00"
         },
         {
@@ -4232,12 +4291,12 @@
             "version": "3.7.5",
             "source": {
                 "type": "git",
-                "url": "https://github.com/piwik/device-detector.git",
+                "url": "https://github.com/matomo-org/device-detector.git",
                 "reference": "119bbad5d04dd1512333d2b4a0658cf9b824ef52"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/piwik/device-detector/zipball/119bbad5d04dd1512333d2b4a0658cf9b824ef52",
+                "url": "https://api.github.com/repos/matomo-org/device-detector/zipball/119bbad5d04dd1512333d2b4a0658cf9b824ef52",
                 "reference": "119bbad5d04dd1512333d2b4a0658cf9b824ef52",
                 "shasum": ""
             },
@@ -9358,7 +9417,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "willdurand/oauth-server-bundle": 20
+        "willdurand/oauth-server-bundle": 20,
+        "mauldin/mautic-mauldin-lead-affiliate-bundle": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

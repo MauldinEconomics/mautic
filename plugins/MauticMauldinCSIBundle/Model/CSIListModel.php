@@ -18,27 +18,31 @@ class CSIListModel
     private $queue = null;
     private $listModel;
 
-    const COOKIES_NAMES = ['client_tracking_id', 'session_tracking_id', 'user_tracking_id'];
+    const COOKIES_NAMES  = ['client_tracking_id', 'session_tracking_id', 'user_tracking_id'];
     const COOKIES_PREFIX = 'exp_';
 
     const CSI_LIST_QUEUE = 'csi_list';
 
-    public function __construct(ListModel $listModel, ChannelHelper $channelHelper)
+    public function __construct(ListModel $listModel, ChannelHelper $channelHelper, LeadAffiliateModel $leadAffiliateModel)
     {
-        $this->listModel     = $listModel;
-        $this->channelHelper = $channelHelper;
+        $this->listModel          = $listModel;
+        $this->channelHelper      = $channelHelper;
+        $this->leadAffiliateModel = $leadAffiliateModel;
     }
 
-    public function getQueue(){
+    public function getQueue()
+    {
         if ($this->queue === null) {
             $this->queue = $this->channelHelper->declareQueue(self::CSI_LIST_QUEUE);
         }
+
         return $this->queue;
     }
 
     public function addToList(Lead $lead, array $addTo)
     {
-        $addIfNotNull = function (& $array, $tag) use ($lead) {
+        $leadAffiliateRepository = $leadAffiliateModel->getRepository();
+        $addIfNotNull            = function (&$array, $tag) use ($lead) {
             $v = $lead->getFieldValue($tag);
             if ($v) {
                 $array[$tag] = $v;
@@ -49,9 +53,11 @@ class CSIListModel
             $message['add']['email'] = $lead->getEmail();
             $message['add']['code']  = substr($this->listModel->getEntity($id)->getAlias(), strlen('csi-free-'));
 
-            foreach (self::COOKIES_NAMES as $name){
+            foreach (self::COOKIES_NAMES as $name) {
                 $addIfNotNull($message['add'], $name);
             }
+
+            $message['add']['affiliate_id'] = $leadAffiliateRepository->getLeadFOF($lead);
 
             $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }
