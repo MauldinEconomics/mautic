@@ -3030,7 +3030,7 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/MauldinEconomics/mautic-lead-affiliate-bundle.git",
-                "reference": "83947507c7bf4d9b31992b322480b3a1c7a418af"
+                "reference": "d4ee7b41d5f0ffbcc27a6b49b21a6d0be9033e48"
             },
             "require": {
                 "mautic/composer-plugin": "*"
@@ -3045,7 +3045,7 @@
                 "proprietary"
             ],
             "description": "Associates affiliate code with the lead it came in on",
-            "time": "2018-03-28T12:20:46+00:00"
+            "time": "2018-04-03 12:44:20"
         },
         {
             "name": "mautic/composer-plugin",
@@ -7993,7 +7993,7 @@
                 "oauth",
                 "server"
             ],
-            "time": "2016-08-18T17:10:55+00:00"
+            "time": "2016-08-18 17:10:55"
         },
         {
             "name": "zendframework/zend-code",
