@@ -10,6 +10,7 @@ namespace MauticPlugin\MauticMauldinCSIBundle\Model;
 use Mautic\LeadBundle\Entity\Lead;
 use Mautic\LeadBundle\Model\ListModel;
 use MauticPlugin\MauticMauldinEmailScalabilityBundle\MessageQueue\ChannelHelper;
+use MauticPlugin\MauticMauldinLeadAffiliateBundle\Model\LeadAffiliateModel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 class CSIListModel
