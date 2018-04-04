@@ -45,7 +45,7 @@ return [
                 ],
             ],
             'mautic.mauldin.set.list' => [
-                'class' => 'MauticPlugin\MauticMauldinCSIBundle\Model\SETListModel',
+                'class'     => 'MauticPlugin\MauticMauldinCSIBundle\Model\SETListModel',
                 'arguments' => [
                     'database_connection',
                     'mautic.mauldin.set.request',
@@ -66,6 +66,7 @@ return [
                 'arguments' => [
                     'mautic.lead.model.list',
                     'mauldin.scalability.message_queue.channel_helper',
+                    'mautic.mauldin_lead_affiliate.model.lead_affiliate',
                 ],
             ],
             'mautic.mauldin.csi.survey' => [
@@ -87,8 +88,8 @@ return [
                 'alias' => 'csilist_action',
             ],
             'mautic.form.type.csisurvey_action' => [
-                'class' => 'MauticPlugin\MauticMauldinCSIBundle\Form\Type\CSISurveyActionType',
-                'alias' => 'csisurvey_action',
+                'class'       => 'MauticPlugin\MauticMauldinCSIBundle\Form\Type\CSISurveyActionType',
+                'alias'       => 'csisurvey_action',
                 'methodCalls' => [
                     'setFieldModel' => ['mautic.form.model.field'],
                     'setFormModel'  => ['mautic.form.model.form'],
