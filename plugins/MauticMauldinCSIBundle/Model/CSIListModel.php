@@ -42,7 +42,7 @@ class CSIListModel
 
     public function addToList(Lead $lead, array $addTo)
     {
-        $leadAffiliateRepository = $leadAffiliateModel->getRepository();
+        $leadAffiliateRepository = $this->leadAffiliateModel->getRepository();
         $addIfNotNull            = function (&$array, $tag) use ($lead) {
             $v = $lead->getFieldValue($tag);
             if ($v) {
