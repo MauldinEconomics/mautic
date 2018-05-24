@@ -861,7 +861,7 @@ class Event
     /**
      * @param int $sampleSize
      */
-    public function setSampleSize( $sampleSize)
+    public function setSampleSize($sampleSize)
     {
         $this->sampleSize = $sampleSize;
     }

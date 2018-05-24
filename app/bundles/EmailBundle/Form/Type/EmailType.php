@@ -439,8 +439,8 @@ class EmailType extends AbstractType
                 'label'      => 'mautic.email.form.auto_rollout_date',
                 'label_attr' => ['class' => 'control-label'],
                 'attr'       => [
-                    'class'       => 'form-control',
-                    'data-toggle' => 'datetime',
+                    'class'        => 'form-control',
+                    'data-toggle'  => 'datetime',
                     'tooltip'      => 'mautic.email.form.auto_rollout_date.tooltip',
                 ],
                 'format'   => 'yyyy-MM-dd HH:mm',
@@ -456,9 +456,8 @@ class EmailType extends AbstractType
                 'label_attr' => ['class' => 'control-label'],
                 'attr'       => [
                     'class'       => 'form-control',
-                    'preaddon' => 'symbol-percentage',
-                    'tooltip' => 'mautic.email.form.sample_size.tooltip'
-
+                    'preaddon'    => 'symbol-percentage',
+                    'tooltip'     => 'mautic.email.form.sample_size.tooltip',
                 ],
                 'required' => false,
             ]

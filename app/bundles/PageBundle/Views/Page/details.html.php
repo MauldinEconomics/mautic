@@ -127,14 +127,14 @@ $view['slots']->set(
                                 </td>
                                 <td>
                                     <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
-                                        echo $activePage->getUniqueHits() - $activePage->getVariantHits();
-                                        echo $view['translator']->trans('mautic.page.stat.before_rollout',
+    echo $activePage->getUniqueHits() - $activePage->getVariantHits();
+    echo $view['translator']->trans('mautic.page.stat.before_rollout',
                                             ['%count%' => $activePage->getVariantHits()]
                                         );
-                                        echo ' / ' . $activePage->getHits();
-                                    } else {
-                                        echo $activePage->getUniqueHits() . ' / ' . $activePage->getHits();
-                                    } ?>
+    echo ' / '.$activePage->getHits();
+} else {
+    echo $activePage->getUniqueHits().' / '.$activePage->getHits();
+} ?>
                                 </td>
                             </tr>
                             </tbody>

@@ -79,10 +79,9 @@ trait VariantModelTrait
         $save[] = $entity;
 
         //save the entities
-        foreach($save as $entity) {
+        foreach ($save as $entity) {
             $this->saveEntity($entity, false);
         }
-
     }
 
     private function recordAbResult($entity)
@@ -127,10 +126,12 @@ EOQ;
         $row = $stmt->fetch();
 
         if (!empty($row)) {
-            $result = json_decode($row['result'], true);
+            $result               = json_decode($row['result'], true);
             $result['isRecorded'] = true;
+
             return $result;
         }
+
         return null;
     }
 
@@ -236,7 +237,8 @@ EOQ;
      *
      * @param VariantEntityInterface $entity
      */
-    public function getWinnerVariant($entity){
+    public function getWinnerVariant($entity)
+    {
         //get A/B test information
         list($parent, $children) = $entity->getVariants();
         $properties              = [];
@@ -308,6 +310,7 @@ EOQ;
                 }
             }
         }
+
         return $abTestResults;
     }
 }

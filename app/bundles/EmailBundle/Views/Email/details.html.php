@@ -208,13 +208,13 @@ if (!$isEmbedded) {
                                 </td>
                                 <td>
                                     <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
-                                        echo $email->getSentCount() - $email->getVariantSentCount();
-                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
+                                echo $email->getSentCount() - $email->getVariantSentCount();
+                                echo $view['translator']->trans('mautic.email.stat.before_rollout',
                                             ['%count%' => $email->getVariantSentCount()]
                                         );
-                                    } else {
-                                        echo $email->getSentCount();
-                                    } ?>
+                            } else {
+                                echo $email->getSentCount();
+                            } ?>
                                 </td>
                             </tr>
                             <tr>
@@ -223,13 +223,13 @@ if (!$isEmbedded) {
                                 </td>
                                 <td>
                                     <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
-                                        echo $email->getReadCount() - $email->getVariantReadCount();
-                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
+                                echo $email->getReadCount() - $email->getVariantReadCount();
+                                echo $view['translator']->trans('mautic.email.stat.before_rollout',
                                             ['%count%' => $email->getVariantReadCount()]
                                         );
-                                    } else {
-                                        echo $email->getReadCount();
-                                    } ?>
+                            } else {
+                                echo $email->getReadCount();
+                            } ?>
                                 </td>
                             </tr>
 

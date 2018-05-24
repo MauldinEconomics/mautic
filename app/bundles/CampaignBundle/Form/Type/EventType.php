@@ -151,7 +151,6 @@ class EventType extends AbstractType
                 ]
             );
             if (isset($options['data']['type']) && in_array($options['data']['type'], ['email.send'])) {
-
                 $data = (empty($options['data']['sampleSize'])) ? 25 : $options['data']['sampleSize'];
 
                 $builder->add(
@@ -159,8 +158,8 @@ class EventType extends AbstractType
                     'number',
                     [
                         'label' => 'mautic.campaign.event.sample_size',
-                        'attr' => [
-                            'class' => 'form-control',
+                        'attr'  => [
+                            'class'    => 'form-control',
                             'preaddon' => 'symbol-percentage',
                         ],
                         'data' => $data,

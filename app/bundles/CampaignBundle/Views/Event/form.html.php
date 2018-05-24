@@ -29,10 +29,10 @@
     <div<?php echo $hideTriggerMode ? ' class="hide"' : ''; ?>>
         <?php echo $view['form']->row($form['triggerMode']); ?>
         <?php $triggerMode = $form['triggerMode']->vars['data'] ?>
-        <div<?php echo !in_array($triggerMode ,['date','abtest']) ? ' class="hide"' : ''; ?> id="triggerDate">
+        <div<?php echo !in_array($triggerMode, ['date', 'abtest']) ? ' class="hide"' : ''; ?> id="triggerDate">
             <?php echo $view['form']->row($form['triggerDate']); ?>
         </div>
-        <div<?php echo !in_array($triggerMode, ['interval','abtest']) ? ' class="hide"' : ''; ?> id="triggerInterval">
+        <div<?php echo !in_array($triggerMode, ['interval', 'abtest']) ? ' class="hide"' : ''; ?> id="triggerInterval">
             <div class="row">
                 <div class="col-sm-4">
                     <?php echo $view['form']->row($form['triggerInterval']); ?>
