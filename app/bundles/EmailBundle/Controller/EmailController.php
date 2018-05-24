@@ -18,6 +18,7 @@ use Mautic\CoreBundle\Helper\EmojiHelper;
 use Mautic\CoreBundle\Helper\InputHelper;
 use Mautic\EmailBundle\Entity\Email;
 use Mautic\EmailBundle\Form\Type\ExampleSendType;
+use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\LeadBundle\Controller\EntityContactsTrait;
 use Mautic\LeadBundle\Model\ListModel;
 use MauticPlugin\MauticCitrixBundle\Helper\CitrixHelper;
@@ -453,7 +454,7 @@ class EmailController extends FormController
                         ],
                         'RETURN_ARRAY'
                     ),
-                    'abTestResults' => $abTestResults,
+                    'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($email) : $abTestResults,
                     'security'      => $security,
                     'previewUrl'    => $this->generateUrl(
                         'mautic_email_preview',
@@ -1087,13 +1088,13 @@ class EmailController extends FormController
     {
         //todo - add confirmation to button click
         $page      = $this->get('session')->get('mautic.email', 1);
-        $returnUrl = $this->generateUrl('mautic_email_index', ['page' => $page]);
+        $returnUrl = $this->generateUrl('mautic_email_index', ['email' => $page]);
         $flashes   = [];
 
         $postActionVars = [
             'returnUrl'       => $returnUrl,
             'viewParameters'  => ['page' => $page],
-            'contentTemplate' => 'MauticEmailBundle:Page:index',
+            'contentTemplate' => 'MauticEmailBundle:Email:index',
             'passthroughVars' => [
                 'activeLink'    => 'mautic_email_index',
                 'mauticContent' => 'page',
@@ -1101,6 +1102,7 @@ class EmailController extends FormController
         ];
 
         if ($this->request->getMethod() == 'POST') {
+            /** @var EmailModel $model */
             $model  = $this->getModel('email');
             $entity = $model->getEntity($objectId);
 
@@ -1136,8 +1138,8 @@ class EmailController extends FormController
                 'objectAction' => 'view',
                 'objectId'     => $objectId,
             ];
-            $postActionVars['returnUrl']       = $this->generateUrl('mautic_page_action', $postActionVars['viewParameters']);
-            $postActionVars['contentTemplate'] = 'MauticEmailBundle:Page:view';
+            $postActionVars['returnUrl']       = $this->generateUrl('mautic_email_action', $postActionVars['viewParameters']);
+            $postActionVars['contentTemplate'] = 'MauticEmailBundle:Email:view';
         } //else don't do anything
 
         return $this->postActionRedirect(

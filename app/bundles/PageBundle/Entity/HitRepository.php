@@ -155,7 +155,7 @@ class HitRepository extends CommonRepository
             $emailIds = [$emailIds];
         }
 
-        $q->select('count(distinct(h.tracking_id)) as hit_count, h.email_id')
+        $q->select('count(distinct(h.lead_id)) as hit_count, h.email_id')
             ->from(MAUTIC_TABLE_PREFIX.'page_hits', 'h')
             ->where($q->expr()->in('h.email_id', $emailIds))
             ->groupBy('h.email_id');
