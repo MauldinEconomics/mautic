@@ -291,6 +291,13 @@ class ListModel extends FormModel
                 'operators' => $this->getOperatorsForFieldType('multiselect'),
                 'object'    => 'lead',
             ],
+            'lead_asset_download'
+             => [   'label'      => $this->translator->trans('mautic.lead.list.filter.lead_asset_download'),
+                'properties' => [
+                    'type' => 'assets',
+                ],
+                'operators' => $this->listModel->getOperatorsForFieldType('multiselect'),
+            ],
             'lead_email_received' => [
                 'label'      => $this->translator->trans('mautic.lead.list.filter.lead_email_received'),
                 'properties' => [

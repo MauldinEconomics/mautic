@@ -1473,6 +1473,7 @@ class LeadListRepository extends CommonRepository
                     break;
                 case 'tags':
                 case 'globalcategory':
+                case 'lead_asset_download':
                 case 'lead_email_received':
                 case 'lead_email_sent':
                 case 'device_type':
@@ -1514,6 +1515,9 @@ class LeadListRepository extends CommonRepository
                             $table  = 'lead_devices';
                             $column = 'device_brand';
                             break;
+                        case 'lead_asset_download':
+                            $table  = 'asset_downloads';
+                            $column = 'asset_id';
                         case 'device_os':
                             $table  = 'lead_devices';
                             $column = 'device_os_name';
