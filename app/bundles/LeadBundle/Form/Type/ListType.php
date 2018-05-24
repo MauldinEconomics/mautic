@@ -13,6 +13,7 @@ namespace Mautic\LeadBundle\Form\Type;
 
 use DeviceDetector\Parser\Device\DeviceParserAbstract as DeviceParser;
 use DeviceDetector\Parser\OperatingSystem;
+use Mautic\AssetBundle\Model\AssetModel;
 use Mautic\CategoryBundle\Model\CategoryModel;
 use Mautic\CoreBundle\Form\EventListener\CleanFormSubscriber;
 use Mautic\CoreBundle\Form\EventListener\FormExitSubscriber;
@@ -22,7 +23,6 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\LeadBundle\Form\DataTransformer\FieldFilterTransformer;
 use Mautic\LeadBundle\Helper\FormFieldHelper;
 use Mautic\LeadBundle\Model\LeadModel;
-use Mautic\AssetBundle\Model\AssetModel;
 use Mautic\LeadBundle\Model\ListModel;
 use Mautic\StageBundle\Model\StageModel;
 use Symfony\Component\Form\AbstractType;
@@ -49,7 +49,7 @@ class ListType extends AbstractType
     private $deviceOsChoices     = [];
     private $tagChoices          = [];
     private $stageChoices        = [];
-    private $assetChoices      = [];
+    private $assetChoices        = [];
     private $localeChoices       = [];
     private $categoriesChoices   = [];
 

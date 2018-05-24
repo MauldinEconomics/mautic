@@ -1518,6 +1518,7 @@ class LeadListRepository extends CommonRepository
                         case 'lead_asset_download':
                             $table  = 'asset_downloads';
                             $column = 'asset_id';
+                            break;
                         case 'device_os':
                             $table  = 'lead_devices';
                             $column = 'device_os_name';
@@ -1533,7 +1534,6 @@ class LeadListRepository extends CommonRepository
                         $leadId,
                         $subQueryFilters
                     );
-
                     $groupExpr->add(
                         sprintf('%s (%s)', $func, $subQb->getSQL())
                     );
