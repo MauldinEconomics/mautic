@@ -426,7 +426,6 @@ class EmailController extends FormController
                     'statsDevices' => $statsDevices,
                     'showAllStats' => $includeVariants,
                     'trackables'   => $trackableLinks,
-                    'pending'      => $model->getPendingLeads($email, null, true),
                     'logs'         => $logs,
                     'isEmbedded'   => $this->request->get('isEmbedded') ? $this->request->get('isEmbedded') : false,
                     'variants'     => [
