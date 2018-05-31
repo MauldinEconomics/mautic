@@ -30,6 +30,7 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 use Symfony\Component\Translation\TranslatorInterface;
+use Symfony\Component\Validator\Constraints\GreaterThan;
 
 /**
  * Class ListType.
@@ -164,6 +165,27 @@ class ListType extends AbstractType
             'yesno_button_group',
             [
                 'label' => 'mautic.lead.list.form.isglobal',
+            ]
+        );
+
+        $builder->add(
+            'updateInterval',
+            'integer',
+            [
+                'label'       => 'mautic.lead.list.form.update_interval',
+                'attr'        => ['class' => 'form-control'],
+                'label_attr'  => ['class' => 'control-label'],
+                'required'    => true,
+                'data'        => (null !== $options['data']->getUpdateInterval()) ? $options['data']->getUpdateInterval() : 24,
+                'empty_data'  => 24,
+                'constraints' => [
+                    new GreaterThan(
+                        [
+                            'value'   => 0,
+                            'message' => 'mautic.lead.list.form.update_interval.invalid',
+                        ]
+                    ),
+                ],
             ]
         );
 
