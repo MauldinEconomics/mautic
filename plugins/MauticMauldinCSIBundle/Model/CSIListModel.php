@@ -58,7 +58,10 @@ class CSIListModel
                 $addIfNotNull($message['add'], $name);
             }
 
-            $message['add']['affiliate_id'] = $leadAffiliateRepository->getLeadFOF($lead);
+            try {
+                $fof = $leadAffiliateRepository->getLeadFOF($lead);
+                $message['add']['affiliate_id'] = $fof;
+            } catch (\Exception $e) {}
 
             $this->getQueue()->publish(new AMQPMessage(serialize($message)));
         }
