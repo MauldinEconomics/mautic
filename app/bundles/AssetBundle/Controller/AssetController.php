@@ -13,9 +13,9 @@ namespace Mautic\AssetBundle\Controller;
 
 use Mautic\AssetBundle\Entity\Asset;
 use Mautic\CoreBundle\Controller\FormController;
+use Mautic\LeadBundle\Controller\EntityContactsTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Mautic\LeadBundle\Controller\EntityContactsTrait;
 
 /**
  * Class AssetController.

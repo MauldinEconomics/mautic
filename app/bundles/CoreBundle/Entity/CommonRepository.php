@@ -1447,7 +1447,7 @@ class CommonRepository extends EntityRepository
         $advancedFilterStrings        = [];
         $queryParameters              = [];
         $queryExpression              = $q->expr()->andX();
-        if(array_key_exists('distinct', $args)) {
+        if (array_key_exists('distinct', $args)) {
             $this->useDistinctCount = $args['distinct'];
         }
 

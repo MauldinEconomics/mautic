@@ -154,15 +154,15 @@ $view['slots']->set(
             <!-- tabs controls -->
             <ul class="nav nav-tabs pr-md pl-md">
                 <li class="<?php if ('preview' === $firstTab) {
-                           echo 'active';
-                           }?>">
+                            echo 'active';
+                        }?>">
                     <a href="#preview-container" role="tab" data-toggle="tab">
                         <?php echo $view['translator']->trans('mautic.asset.asset.preview'); ?>
                     </a>
                 </li>
                 <li class="<?php if ('contacts' === $firstTab) {
-                           echo 'active';
-                           }?>">
+                            echo 'active';
+                        }?>">
                     <a href="#leads-container" role="tab" data-toggle="tab">
                         <?php echo $view['translator']->trans('mautic.asset.asset.leads'); ?>
                     </a>

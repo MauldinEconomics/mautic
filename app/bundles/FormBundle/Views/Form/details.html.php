@@ -74,7 +74,7 @@ $view['slots']->set(
 );
 
 $showActions = count($activeFormActions);
-$firstTab = $showActions ? 'actions' : 'fields';
+$firstTab    = $showActions ? 'actions' : 'fields';
 ?>
 <!-- start: box layout -->
 <div class="box-layout">
@@ -228,7 +228,7 @@ $firstTab = $showActions ? 'actions' : 'fields';
             <?php endif; ?>
 
             <!-- #fields-container -->
-            <div class="tab-pane fade<?php if ("fields" === $firstTab) {
+            <div class="tab-pane fade<?php if ('fields' === $firstTab) {
                                             echo ' active in';
                                         } ?> bdr-w-0" id="fields-container">
                 <h5 class="fw-sb mb-xs">Form Field</h5>
@@ -266,7 +266,7 @@ $firstTab = $showActions ? 'actions' : 'fields';
             </div>
             <!--/ #fields-container -->
             <!-- #leads-container -->
-            <div id="leads-container" class="<?php if('leads' === $firstTab): echo 'active '; endif; ?>tab-pane fade page-list in bdr-w-0">
+            <div id="leads-container" class="<?php if ('leads' === $firstTab): echo 'active '; endif; ?>tab-pane fade page-list in bdr-w-0">
                 <?php echo $formLeads; ?>
                 <div class="clearfix"></div>
             </div>

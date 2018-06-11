@@ -15,9 +15,9 @@ use Mautic\CoreBundle\Controller\BuilderControllerTrait;
 use Mautic\CoreBundle\Controller\FormController;
 use Mautic\CoreBundle\Controller\FormErrorMessagesTrait;
 use Mautic\CoreBundle\Helper\InputHelper;
+use Mautic\LeadBundle\Controller\EntityContactsTrait;
 use Mautic\PageBundle\Entity\Page;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Mautic\LeadBundle\Controller\EntityContactsTrait;
 
 /**
  * Class PageController.
@@ -362,7 +362,7 @@ class PageController extends FormController
                     [
                         'objectId'   => $activePage->getId(),
                         'page'       => $this->get('session')->get('mautic.page.contact.page', 1),
-                        'ignoreAjax' => true
+                        'ignoreAjax' => true,
                     ]
                 )->getContent(),
             ],

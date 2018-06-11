@@ -90,7 +90,7 @@ trait EntityContactsTrait
                 'filter'         => $filter,
                 'orderBy'        => $orderBy,
                 'orderByDir'     => $orderByDir,
-                'distinct'       => true
+                'distinct'       => true,
             ],
             $entityJoinTable,
             $entityId,
