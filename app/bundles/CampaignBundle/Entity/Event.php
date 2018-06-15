@@ -208,6 +208,7 @@ class Event
             ->length(10)
             ->nullable()
             ->build();
+
         $builder->createField('sampleSize', 'integer')
             ->columnName('sample_size')
             ->nullable()
