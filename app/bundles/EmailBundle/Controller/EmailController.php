@@ -372,6 +372,11 @@ class EmailController extends FormController
             }
         }
 
+        // Attempt to retrieve recorded ABTestResult if necessary
+        if (empty($abTestResults) && !empty($children)) {
+            $abTestResults = $model->getRecordedAbResult($email);
+        }
+
         //get related translations
         list($translationParent, $translationChildren) = $email->getTranslations();
 
@@ -454,7 +459,7 @@ class EmailController extends FormController
                         ],
                         'RETURN_ARRAY'
                     ),
-                    'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($email) : $abTestResults,
+                    'abTestResults' => $abTestResults,
                     'security'      => $security,
                     'previewUrl'    => $this->generateUrl(
                         'mautic_email_preview',

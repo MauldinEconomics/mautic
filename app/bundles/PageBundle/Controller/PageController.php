@@ -293,6 +293,11 @@ class PageController extends FormController
             }
         }
 
+        // Attempt to retrieve recorded ABTestResult if necessary
+        if (empty($abTestResults) && !empty($children)) {
+            $abTestResults = $model->getRecordedAbResult($activePage);
+        }
+
         // Init the date range filter form
         $dateRangeValues = $this->request->get('daterange', []);
         $action          = $this->generateUrl('mautic_page_action', ['objectAction' => 'view', 'objectId' => $objectId]);
@@ -349,7 +354,7 @@ class PageController extends FormController
                         'unique' => $activePage->getUniqueHits(),
                     ],
                 ],
-                'abTestResults' => empty($abTestResults) && !empty($children) ? $model->getRecordedAbResult($activePage) : $abTestResults,
+                'abTestResults' => $abTestResults,
                 'security'      => $security,
                 'pageUrl'       => $model->generateUrl($activePage, true),
                 'previewUrl'    => $this->generateUrl('mautic_page_preview', ['id' => $objectId], true),
