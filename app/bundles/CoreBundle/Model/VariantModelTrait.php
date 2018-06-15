@@ -11,6 +11,7 @@
 
 namespace Mautic\CoreBundle\Model;
 
+use Mautic\CoreBundle\Entity\ABTestResult;
 use Mautic\CoreBundle\Entity\TranslationEntityInterface;
 use Mautic\CoreBundle\Entity\VariantEntityInterface;
 
@@ -84,55 +85,43 @@ trait VariantModelTrait
         }
     }
 
-    private function recordAbResult($entity)
+    /**
+     * Record AB Test Result for variant entity.
+     *
+     * @param VariantEntityInterface $entity
+     */
+    private function recordAbResult(VariantEntityInterface $entity)
     {
-        $abResults = $this->getWinnerVariant($entity);
+        $result   = $this->getWinnerVariant($entity);
+        $abResult = (new ABTestResult())
+            ->setEntity($entity)
+            ->setResult($result);
 
-        $conn = $this->em->getConnection();
-
-        $q = <<<EOQ
-INSERT INTO
-        ab_test_result (entity_id, entity_type, result)
-    VALUES
-        (:id, :type, :value)
-EOQ;
-
-        $stmt = $conn->prepare($q);
-        $stmt->bindValue('id', $entity->getId());
-        $stmt->bindValue('type', (new \ReflectionClass($entity))->getShortName());
-        $stmt->bindValue('value', json_encode($abResults));
-        $stmt->execute();
+        $this->em->getRepository('MauticCoreBundle:ABTestResult')
+            ->saveEntity($abResult);
     }
 
-    public function getRecordedAbResult($entity)
+    /**
+     * Get AB Test Result recorded for variant entity, setting the
+     * 'isRecorded' array key to TRUE when the result is located.
+     *
+     * @param VariantEntityInterface $entity
+     *
+     * @return array
+     */
+    public function getRecordedAbResult(VariantEntityInterface $entity)
     {
-        $conn = $this->em->getConnection();
+        $record = $this->em->getRepository('MauticCoreBundle:ABTestResult')
+            ->findOneByEntity($entity);
 
-        $q = <<<EOQ
-SELECT
-        result
-    FROM
-        ab_test_result AS r
-    WHERE
-        r.entity_id = :id
-            AND
-        r.entity_type = :type
-EOQ;
+        $result = [];
 
-        $stmt = $conn->prepare($q);
-        $stmt->bindValue('id', $entity->getId());
-        $stmt->bindValue('type', (new \ReflectionClass($entity))->getShortName());
-        $stmt->execute();
-        $row = $stmt->fetch();
-
-        if (!empty($row)) {
-            $result               = json_decode($row['result'], true);
+        if (null != $record) {
+            $result               = $record->getResult();
             $result['isRecorded'] = true;
-
-            return $result;
         }
 
-        return null;
+        return $result;
     }
 
     /**
@@ -244,6 +233,7 @@ EOQ;
         $properties              = [];
         $variantError            = false;
         $weight                  = 0;
+
         if (count($children)) {
             foreach ($children as $c) {
                 $variantSettings = $c->getVariantSettings();
@@ -275,6 +265,7 @@ EOQ;
 
         $abTestResults = [];
         $criteria      = $this->getBuilderComponents($entity, 'abTestWinnerCriteria');
+
         if (!empty($lastCriteria) && empty($variantError)) {
             if (isset($criteria['criteria'][$lastCriteria])) {
                 $testSettings = $criteria['criteria'][$lastCriteria];
