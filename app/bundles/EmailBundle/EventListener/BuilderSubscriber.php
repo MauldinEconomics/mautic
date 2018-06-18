@@ -138,7 +138,7 @@ class BuilderSubscriber extends CommonSubscriber
         if ($event->slotTypesRequested()) {
             $event->addSlotType(
                 'text',
-                'Text',
+                $this->translator->trans('mautic.core.slot.label.text'),
                 'font',
                 'MauticCoreBundle:Slots:text.html.php',
                 SlotTextType::class,
@@ -146,7 +146,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSlotType(
                 'image',
-                'Image',
+                $this->translator->trans('mautic.core.slot.label.image'),
                 'image',
                 'MauticCoreBundle:Slots:image.html.php',
                 'slot_image',
@@ -154,7 +154,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSlotType(
                 'imagecard',
-                'Image Card',
+                $this->translator->trans('mautic.core.slot.label.imagecard'),
                 'id-card-o',
                 'MauticCoreBundle:Slots:imagecard.html.php',
                 'slot_imagecard',
@@ -162,7 +162,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSlotType(
                 'imagecaption',
-                'Image+Caption',
+                $this->translator->trans('mautic.core.slot.label.imagecaption'),
                 'image',
                 'MauticCoreBundle:Slots:imagecaption.html.php',
                 'slot_imagecaption',
@@ -170,7 +170,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSlotType(
                 'button',
-                'Button',
+                $this->translator->trans('mautic.core.slot.label.button'),
                 'external-link',
                 'MauticCoreBundle:Slots:button.html.php',
                 'slot_button',
@@ -178,34 +178,43 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSlotType(
                 'socialfollow',
-                'Social Follow',
+                $this->translator->trans('mautic.core.slot.label.socialfollow'),
                 'twitter',
                 'MauticCoreBundle:Slots:socialfollow.html.php',
                 'slot_socialfollow',
                 600
             );
-//            $event->addSlotType(
-//                'codemode',
-//                'Code Mode',
-//                'code',
-//                'MauticCoreBundle:Slots:codemode.html.php',
-//                'slot_codemode',
-//                500
-//            );
+            $event->addSlotType(
+                'codemode',
+                $this->translator->trans('mautic.core.slot.label.codemode'),
+                'code',
+                'MauticCoreBundle:Slots:codemode.html.php',
+                'slot_codemode',
+                500
+            );
             $event->addSlotType(
                 'separator',
-                'Separator',
+                $this->translator->trans('mautic.core.slot.label.separator'),
                 'minus',
                 'MauticCoreBundle:Slots:separator.html.php',
-                'slot',
+                'slot_separator',
                 400
+            );
+
+            $event->addSlotType(
+                'dynamicContent',
+                $this->translator->trans('mautic.core.slot.label.dynamiccontent'),
+                'tag',
+                'MauticCoreBundle:Slots:dynamiccontent.html.php',
+                'slot_dynamiccontent',
+                300
             );
         }
 
         if ($event->sectionsRequested()) {
             $event->addSection(
                 'one-column',
-                'One Column',
+                $this->translator->trans('mautic.core.slot.label.onecolumn'),
                 'file-text-o',
                 'MauticCoreBundle:Sections:one-column.html.php',
                 null,
@@ -213,7 +222,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSection(
                 'two-column',
-                'Two Columns',
+                $this->translator->trans('mautic.core.slot.label.twocolumns'),
                 'columns',
                 'MauticCoreBundle:Sections:two-column.html.php',
                 null,
@@ -221,7 +230,7 @@ class BuilderSubscriber extends CommonSubscriber
             );
             $event->addSection(
                 'three-column',
-                'Three Columns',
+                $this->translator->trans('mautic.core.slot.label.threecolumns'),
                 'th',
                 'MauticCoreBundle:Sections:three-column.html.php',
                 null,
@@ -269,15 +278,6 @@ class BuilderSubscriber extends CommonSubscriber
 
         $signatureText = $this->coreParametersHelper->getParameter('default_signature_text');
         $fromName      = $this->coreParametersHelper->getParameter('mailer_from_name');
-
-        if (!empty($lead['owner_id'])) {
-            $owner = $this->factory->getModel('lead')->getRepository()->getLeadOwner($lead['owner_id']);
-            if ($owner && !empty($owner['signature'])) {
-                $fromName      = $owner['first_name'].' '.$owner['last_name'];
-                $signatureText = EmojiHelper::toHtml($owner['signature']);
-            }
-        }
-
         $signatureText = str_replace('|FROM_NAME|', $fromName, nl2br($signatureText));
         $event->addToken('{signature}', EmojiHelper::toHtml($signatureText));
 
@@ -291,15 +291,18 @@ class BuilderSubscriber extends CommonSubscriber
      */
     public function convertUrlsToTokens(EmailSendEvent $event)
     {
-        if ($event->isInternalSend()) {
-            // Don't convert for previews, example emails, etc
-
+        if ($event->isInternalSend() || $this->coreParametersHelper->getParameter('disable_trackable_urls')) {
+            // Don't convert urls
             return;
         }
 
         $email   = $event->getEmail();
         $emailId = ($email) ? $email->getId() : null;
+        if (!$email instanceof Email) {
+            $email = $this->emailModel->getEntity($emailId);
+        }
 
+        $utmTags      = $email->getUtmTags();
         $clickthrough = $event->generateClickthrough();
         $trackables   = $this->parseContentForUrls($event, $emailId);
 
@@ -310,9 +313,9 @@ class BuilderSubscriber extends CommonSubscriber
         foreach ($trackables as $token => $trackable) {
             $url = ($trackable instanceof Trackable)
                 ?
-                $this->pageTrackableModel->generateTrackableUrl($trackable, $clickthrough)
+                $this->pageTrackableModel->generateTrackableUrl($trackable, $clickthrough, false, $utmTags)
                 :
-                $this->pageRedirectModel->generateRedirectUrl($trackable, $clickthrough);
+                $this->pageRedirectModel->generateRedirectUrl($trackable, $clickthrough, false, $utmTags);
 
             $event->addToken($token, $url);
         }

@@ -45,6 +45,21 @@ if (empty($emailType)) {
 
 $customButtons = [];
 if (!$isEmbedded) {
+    if ($emailType == 'list') {
+        $customButtons[] = [
+            'attr' => [
+                'data-toggle' => 'ajax',
+                'href'        => $view['router']->path(
+                    'mautic_email_action',
+                    ['objectAction' => 'send', 'objectId' => $email->getId()]
+                ),
+            ],
+            'iconClass' => 'fa fa-send-o',
+            'btnText'   => 'mautic.email.send',
+            'primary'   => true,
+        ];
+    }
+
     $customButtons[] = [
         'attr' => [
             'class'       => 'btn btn-default btn-nospin',
@@ -178,46 +193,14 @@ if (!$isEmbedded) {
                                     <td><?php echo $bccAddress; ?></td>
                                 </tr>
                             <?php endif; ?>
-
-                            <?php if (!empty($pending) && $email->isPublished()): ?>
+                            <?php if ($headers = $email->getHeaders()): ?>
                                 <tr>
                                     <td width="20%">
-                                        <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.pending_count'); ?></span>
+                                        <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.custom_headers'); ?></span>
                                     </td>
-                                    <td><?php echo $pending; ?></td>
+                                    <td><?php echo $view['formatter']->simpleArrayToHtml($headers); ?></td>
                                 </tr>
                             <?php endif; ?>
-                            <tr>
-                                <td width="20%">
-                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.sent_count'); ?></span>
-                                </td>
-                                <td>
-                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
-                                        echo $email->getSentCount() - $email->getVariantSentCount();
-                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
-                                            ['%count%' => $email->getVariantSentCount()]
-                                        );
-                                    } else {
-                                        echo $email->getSentCount();
-                                    } ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="20%">
-                                    <span class="fw-b"><?php echo $view['translator']->trans('mautic.email.stat.read_count'); ?></span>
-                                </td>
-                                <td>
-                                    <?php if (isset($abTestResults['isRecorded']) && $abTestResults['isRecorded']) {
-                                        echo $email->getReadCount() - $email->getVariantReadCount();
-                                        echo $view['translator']->trans('mautic.email.stat.before_rollout',
-                                            ['%count%' => $email->getVariantReadCount()]
-                                        );
-                                    } else {
-                                        echo $email->getReadCount();
-                                    } ?>
-                                </td>
-                            </tr>
-
                             </tbody>
                         </table>
                     </div>
@@ -251,11 +234,18 @@ if (!$isEmbedded) {
                 ]
             ); ?>
 
+            <?php echo $view['content']->getCustomContent('details.stats.graph.below', $mauticTemplateVars); ?>
+
             <!-- tabs controls -->
             <ul class="nav nav-tabs pr-md pl-md">
                 <li class="active">
                     <a href="#clicks-container" role="tab" data-toggle="tab">
                         <?php echo $view['translator']->trans('mautic.trackable.click_counts'); ?>
+                    </a>
+                </li>
+                <li>
+                    <a href="#contacts-container" role="tab" data-toggle="tab">
+                        <?php echo $view['translator']->trans('mautic.email.associated.contacts'); ?>
                     </a>
                 </li>
                 <?php if ($showVariants): ?>
@@ -280,6 +270,10 @@ if (!$isEmbedded) {
         <div class="tab-content pa-md">
             <div class="tab-pane active bdr-w-0" id="clicks-container">
                 <?php echo $view->render('MauticPageBundle:Trackable:click_counts.html.php', ['trackables' => $trackables]); ?>
+            </div>
+
+            <div class="tab-pane bdr-w-0" id="contacts-container">
+                <?php echo $contacts; ?>
             </div>
 
             <?php if ($showVariants): ?>
@@ -312,7 +306,7 @@ if (!$isEmbedded) {
                 <div class="input-group">
                     <input onclick="this.setSelectionRange(0, this.value.length);" type="text" class="form-control"
                            readonly
-                           value="<?php echo $previewUrl; ?>"/>
+                           value="<?php echo $view->escape($previewUrl); ?>"/>
                     <span class="input-group-btn">
                         <button class="btn btn-default btn-nospin" onclick="window.open('<?php echo $previewUrl; ?>', '_blank');">
                             <i class="fa fa-external-link"></i>
@@ -326,5 +320,5 @@ if (!$isEmbedded) {
         <?php echo $view->render('MauticCoreBundle:Helper:recentactivity.html.php', ['logs' => $logs]); ?>
     </div>
     <!--/ right section -->
-    <input name="entityId" id="entityId" type="hidden" value="<?php echo $email->getId(); ?>"/>
+    <input name="entityId" id="entityId" type="hidden" value="<?php echo $view->escape($email->getId()); ?>"/>
 </div>

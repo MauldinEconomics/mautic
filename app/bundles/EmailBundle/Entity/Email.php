@@ -14,6 +14,7 @@ namespace Mautic\EmailBundle\Entity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\PersistentCollection;
 use Mautic\ApiBundle\Serializer\Driver\ApiMetadataDriver;
 use Mautic\AssetBundle\Entity\Asset;
 use Mautic\CoreBundle\Doctrine\Mapping\ClassMetadataBuilder;
@@ -27,6 +28,7 @@ use Mautic\CoreBundle\Helper\EmojiHelper;
 use Mautic\FormBundle\Entity\Form;
 use Mautic\LeadBundle\Entity\LeadList;
 use Mautic\LeadBundle\Form\Validator\Constraints\LeadListAccess;
+use Mautic\PageBundle\Entity\Page;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -92,6 +94,11 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     private $content = [];
 
     /**
+     * @var array
+     */
+    private $utmTags = [];
+
+    /**
      * @var string
      */
     private $plainText;
@@ -146,9 +153,6 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
      */
     private $stats;
 
-    private $autoRolloutDate;
-
-    private $sampleSize;
     /**
      * @var int
      */
@@ -165,6 +169,11 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     private $unsubscribeForm;
 
     /**
+     * @var \Mautic\PageBundle\Entity\Page
+     */
+    private $preferenceCenter;
+
+    /**
      * @var ArrayCollection
      */
     private $assetAttachments;
@@ -175,6 +184,11 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
      * @var
      */
     private $sessionId;
+
+    /**
+     * @var array
+     */
+    private $headers = [];
 
     public function __clone()
     {
@@ -257,6 +271,11 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
             ->nullable()
             ->build();
 
+        $builder->createField('utmTags', 'array')
+            ->columnName('utm_tags')
+            ->nullable()
+            ->build();
+
         $builder->createField('plainText', 'text')
             ->columnName('plain_text')
             ->nullable()
@@ -273,14 +292,6 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
             ->build();
 
         $builder->addPublishDates();
-
-        $builder->createField('autoRolloutDate', 'datetime')
-            ->columnName('auto_rollout_date')
-            ->build();
-
-        $builder->createField('sampleSize', 'integer')
-            ->columnName('sample_size')
-            ->build();
 
         $builder->createField('readCount', 'integer')
             ->columnName('read_count')
@@ -325,12 +336,18 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
             ->addJoinColumn('unsubscribeform_id', 'id', true, false, 'SET NULL')
             ->build();
 
+        $builder->createManyToOne('preferenceCenter', 'Mautic\PageBundle\Entity\Page')
+            ->addJoinColumn('preference_center_id', 'id', true, false, 'SET NULL')
+            ->build();
+
         $builder->createManyToMany('assetAttachments', 'Mautic\AssetBundle\Entity\Asset')
             ->setJoinTable('email_assets_xref')
             ->addInverseJoinColumn('asset_id', 'id', false, false, 'CASCADE')
             ->addJoinColumn('email_id', 'id', false, false, 'CASCADE')
             ->fetchExtraLazy()
             ->build();
+
+        $builder->addField('headers', 'json_array');
     }
 
     /**
@@ -343,6 +360,15 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
             new NotBlank(
                 [
                     'message' => 'mautic.core.name.required',
+                ]
+            )
+        );
+
+        $metadata->addPropertyConstraint(
+            'subject',
+            new NotBlank(
+                [
+                    'message' => 'mautic.core.subject.required',
                 ]
             )
         );
@@ -445,14 +471,13 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
                     'fromName',
                     'replyToAddress',
                     'bccAddress',
+                    'utmTags',
                     'customHtml',
                     'plainText',
                     'template',
                     'emailType',
                     'publishUp',
                     'publishDown',
-                    'autoRolloutDate',
-                    'sampleSize',
                     'readCount',
                     'sentCount',
                     'revision',
@@ -467,6 +492,7 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
                     'unsubscribeForm',
                     'dynamicContent',
                     'lists',
+                    'headers',
                 ]
             )
             ->build();
@@ -583,6 +609,25 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
 
         $this->isChanged('content', $content);
         $this->content = $content;
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getUtmTags()
+    {
+        return $this->utmTags;
+    }
+
+    /**
+     * @param array $utmTags
+     */
+    public function setUtmTags($utmTags)
+    {
+        $this->isChanged('utmTags', $utmTags);
+        $this->utmTags = $utmTags;
 
         return $this;
     }
@@ -854,7 +899,7 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     }
 
     /**
-     * @return mixed
+     * @return PersistentCollection
      */
     public function getLists()
     {
@@ -988,6 +1033,26 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     /**
      * @return mixed
      */
+    public function getPreferenceCenter()
+    {
+        return $this->preferenceCenter;
+    }
+
+    /**
+     * @param Page $preferenceCenter
+     *
+     * @return $this
+     */
+    public function setPreferenceCenter(Page $preferenceCenter = null)
+    {
+        $this->preferenceCenter = $preferenceCenter;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
     public function getEmailType()
     {
         return $this->emailType;
@@ -1040,6 +1105,26 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
     }
 
     /**
+     * @return array
+     */
+    public function getHeaders()
+    {
+        return $this->headers;
+    }
+
+    /**
+     * @param array $headers
+     *
+     * @return Email
+     */
+    public function setHeaders($headers)
+    {
+        $this->headers = $headers;
+
+        return $this;
+    }
+
+    /**
      * Lifecycle callback to clean URLs in the content.
      */
     public function cleanUrlsInContent()
@@ -1081,37 +1166,5 @@ class Email extends FormEntity implements VariantEntityInterface, TranslationEnt
         } else {
             return 0;
         }
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getSampleSize()
-    {
-        return $this->sampleSize;
-    }
-
-    /**
-     * @param mixed $sampleSize
-     */
-    public function setSampleSize($sampleSize)
-    {
-        $this->sampleSize = $sampleSize;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getAutoRolloutDate()
-    {
-        return $this->autoRolloutDate;
-    }
-
-    /**
-     * @param mixed $autoRolloutDate
-     */
-    public function setAutoRolloutDate($autoRolloutDate)
-    {
-        $this->autoRolloutDate = $autoRolloutDate;
     }
 }
