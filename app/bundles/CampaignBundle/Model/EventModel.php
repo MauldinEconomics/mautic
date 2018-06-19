@@ -555,6 +555,39 @@ class EventModel extends CommonFormModel
         // Try to save some memory
         gc_enable();
 
+        // If an AB Test startup time is not set make it now so we can check it later
+        $now = new \DateTime();
+        foreach ($events as $event) {
+            if ('abtest' == $event['triggerMode']) {
+                $triggerDate = $event['triggerDate'];
+                $fail        = null;
+                $email       = $this->emailModel->getEntity($event['properties']['email']);
+
+                if (null === $triggerDate) {
+                    /** @var Event $ev */
+                    $ev = $this->getRepository()->getEntity($event['id']);
+                    $ev->setTriggerDate($now);
+                    $triggerDate = $now;
+                    $this->getRepository()->saveEntity($ev);
+                }
+
+                $rollout = $this->addInterval(
+                    $triggerDate,
+                    $event['triggerInterval'],
+                    $event['triggerIntervalUnit']
+                );
+
+                if ($rollout < $now) {
+                    $this->notifyABTestError($campaign, $event, $email, $this->translator->trans(
+                        'mautic.campaign.event.abtest.fail_past_rollout',
+                        ['%rollout%' => $rollout->format('Y-m-d H:i:s T')]
+                    ));
+
+                    return 0;
+                }
+            }
+        }
+
         $maxCount = ($max) ? $max : $totalStartingEvents;
 
         if ($output) {
@@ -609,6 +642,14 @@ class EventModel extends CommonFormModel
                 break;
             }
 
+            $sampleIndexes = [];
+            foreach ($events as $event) {
+                if ('abtest' == $event['triggerMode']) {
+                    $sampleSize                  = $event['sampleSize'];
+                    $sampleIndexes[$event['id']] = array_rand($leads, floor(count($campaignLeads) * $sampleSize / 100));
+                }
+            }
+
             /** @var \Mautic\LeadBundle\Entity\Lead $lead */
             $leadDebugCounter = 1;
             foreach ($leads as $lead) {
@@ -635,6 +676,9 @@ class EventModel extends CommonFormModel
                     } else {
                         ++$sleepBatchCount;
                     }
+
+                    $this->inSample = isset($sampleIndexes[$eventId]) &&
+                        in_array($lead->getId(), $sampleIndexes[$eventId]);
 
                     if ($event['eventType'] == 'decision') {
                         ++$evaluatedEventCount;
@@ -820,6 +864,15 @@ class EventModel extends CommonFormModel
 
         // Get events to avoid joins
         $campaignEvents = $repo->getCampaignActionAndConditionEvents($campaignId);
+
+        // Check if AB Test timeout has been reached
+        foreach ($campaignEvents as $campaignEvent) {
+            if ('abtest' == $event['triggerMode']) {
+                if (!$this->checkCampaignEventABTestTimeout($campaignEvent)) {
+                    return 0;
+                }
+            }
+        }
 
         // Event settings
         $eventSettings = $this->campaignModel->getEvents();
@@ -1931,7 +1984,7 @@ class EventModel extends CommonFormModel
      * @param \DateTime $parentTriggeredDate
      * @param bool      $allowNegative
      *
-     * @return bool
+     * @return bool|DateTime
      */
     public function checkEventTiming($action, \DateTime $parentTriggeredDate = null, $allowNegative = false)
     {
@@ -1943,31 +1996,47 @@ class EventModel extends CommonFormModel
             $action = $action->convertToArray();
         }
 
-        if ($action['decisionPath'] == 'no' && !$allowNegative) {
+        if ('no' == $action['decisionPath'] && !$allowNegative) {
             $this->logger->debug('CAMPAIGN: '.ucfirst($action['eventType']).' is attached to a negative path which is not allowed');
 
             return false;
         } else {
-            $negate = ($action['decisionPath'] == 'no' && $allowNegative);
+            $negate = ('no' == $action['decisionPath'] && $allowNegative);
 
-            if ($action['triggerMode'] == 'interval') {
-                $triggerOn = $negate ? clone $parentTriggeredDate : new \DateTime();
+            if ('abtest' == $action['triggerMode']) {
+                if ($this->inSample) {
+                    $triggerMode = 'date';
+                } else {
+                    $triggerMode = 'interval';
+                }
+                $this->inSample = null;
+            } else {
+                $triggerMode = $action['triggerMode'];
+            }
 
-                if ($triggerOn == null) {
+            if ('interval' == $triggerMode) {
+                if ($negate) {
+                    $triggerOn = clone $parentTriggeredDate;
+                } else {
+                    $trigger   = new DateTimeHelper(isset($action['triggerDate']) ? clone $action['triggerDate'] : null);
+                    $triggerOn = $trigger->getDateTime();
+                    unset($trigger);
+                }
+
+                if (null == $triggerOn) {
                     $triggerOn = new \DateTime();
                 }
 
-                $interval = $action['triggerInterval'];
-                $unit     = $action['triggerIntervalUnit'];
+                $this->addInterval(
+                    $triggerOn,
+                    $action['triggerInterval'],
+                    $action['triggerIntervalUnit']
+                );
 
-                $this->logger->debug('CAMPAIGN: Adding interval of '.$interval.$unit.' to '.$triggerOn->format('Y-m-d H:i:s T'));
-
-                $triggerOn->add((new DateTimeHelper())->buildInterval($interval, $unit));
-
-                if ($triggerOn > $now) {
+                if ($triggerOn >= $now) {
                     $this->logger->debug(
                         'CAMPAIGN: Date to execute ('.$triggerOn->format('Y-m-d H:i:s T').') is later than now ('.$now->format('Y-m-d H:i:s T')
-                        .')'.(($action['decisionPath'] == 'no') ? ' so ignore' : ' so schedule')
+                        .')'.(('no' == $action['decisionPath']) ? ' so ignore' : ' so schedule')
                     );
 
                     // Save some RAM for batch processing
@@ -1976,7 +2045,7 @@ class EventModel extends CommonFormModel
                     //the event is to be scheduled based on the time interval
                     return $triggerOn;
                 }
-            } elseif ($action['triggerMode'] == 'date') {
+            } elseif ('date' == $triggerMode) {
                 if (!$action['triggerDate'] instanceof \DateTime) {
                     $triggerDate           = new DateTimeHelper($action['triggerDate']);
                     $action['triggerDate'] = $triggerDate->getDateTime();
@@ -2217,6 +2286,86 @@ class EventModel extends CommonFormModel
     }
 
     /**
+     * Notify the campaign creator of the failed AB Test.
+     *
+     * @param Campaign $campaign
+     * @param array    $event
+     * @param Email    $email
+     * @param string   $message
+     */
+    public function notifyABTestError($campaign, $event, $email, $message)
+    {
+        $owner = $this->userModel->getEntity($campaign->getCreatedBy());
+
+        if (null != $owner) {
+            $this->notificationModel->addNotification(
+                $campaign->getName().' / '.$event['name'],
+                'error',
+                false,
+                $this->translator->trans(
+                    'mautic.campaign.abtest.failed',
+                    [
+                        '%message%' => $message,
+                        '%email%'   => $email->getName(),
+                    ]
+                ),
+                null,
+                null,
+                $owner
+            );
+        }
+    }
+
+    /**
+     * Check campaign event ab test timeout.
+     *
+     * @param CampaignEvent $campaignEvent
+     *
+     * @return bool
+     * @TODO
+     */
+    protected function checkCampaignEventABTestTimeout(CampaignEvent $campaignEvent)
+    {
+        // Check if timing has passed
+        $this->inSample = false;
+        $rolloutReady   = $this->checkEventTiming($event, null, false);
+        $this->inSample = null;
+        if (true === $rolloutReady) {
+            //Pick the winner for the ab test
+
+            $email = $this->emailModel->getEntity($event['properties']['email']);
+            if (!empty($email->getVariants())) {
+                $winners = $this->emailModel->getWinnerVariant($email)['winners'];
+                $fail    = null;
+
+                if (!empty($winners)) {
+                    $winnerEmail = $this->emailModel->getEntity($winners[0]);
+                    $this->emailModel->convertVariant($winnerEmail);
+
+                    if ($event['properties']['email'] !== $winners[0]) {
+                        $event['properties']['email'] = $winners[0];
+                        /** @var Event $eventEntity */
+                        $eventEntity = $repo->getEntity($event['id']);
+                        $eventEntity->setProperties($event['properties']);
+                        $repo->saveEntity($eventEntity);
+                    }
+                } else {
+                    $fail = 'no data available for picking the winner';
+                }
+            } else {
+                $fail = 'no variants were found';
+            }
+            if ($fail) {
+                $this->notifyABTestError($campaign, $event, $email, $fail);
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Batch sleep according to settings.
      */
     protected function batchSleep()
@@ -2232,5 +2381,43 @@ class EventModel extends CommonFormModel
         } else {
             sleep($eventSleepTime);
         }
+    }
+
+    /**
+     * AddInterval adds, to a cloned DateTime argument $date, a DateInterval
+     * created from $duration value and $preunit unit arguments, returning
+     * that clone.
+     *
+     * @param \DateTime $date     The date to be forwarded
+     * @param int       $duration An integer specifying the quantity of unit
+     * @param string    $preunit  Either a date [YyMmDd] or time [HhIiSs] unit character
+     */
+    protected function addInterval(\DateTime $date, $duration, $preunit)
+    {
+        $future = clone $date;
+        $unit   = strtoupper($preunit);
+
+        switch ($unit) {
+            case 'Y':
+            case 'M':
+            case 'D':
+                $spec = "P{$duration}{$unit}";
+                break;
+            case 'I':
+                $spec = "PT{$duration}M";
+                break;
+            case 'H':
+            case 'S':
+                $spec = "PT{$duration}{$unit}";
+                break;
+        }
+
+        $this->logger->debug(
+            sprintf('CAMPAIGN: Adding interval of %s to %s', $spec, $date->format('Y-m-d H:i:s T'))
+        );
+
+        $interval = new \DateInterval($spec);
+
+        return $future->add($interval);
     }
 }
