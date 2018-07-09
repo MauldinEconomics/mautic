@@ -1086,7 +1086,7 @@ class LeadListRepository extends CommonRepository
                             );
                             break;
                         case 'like':
-                        case '!like':
+                        case 'notLike':
                             $parameters[$parameter] = '%'.$details['filter'].'%';
                             $subqb->where(
                                 $q->expr()->andX(
@@ -1504,6 +1504,7 @@ class LeadListRepository extends CommonRepository
                     break;
                 case 'tags':
                 case 'globalcategory':
+                case 'lead_asset_download':
                 case 'lead_email_received':
                 case 'lead_email_sent':
                 case 'device_type':
@@ -1545,6 +1546,10 @@ class LeadListRepository extends CommonRepository
                             $table  = 'lead_devices';
                             $column = 'device_brand';
                             break;
+                        case 'lead_asset_download':
+                            $table  = 'asset_downloads';
+                            $column = 'asset_id';
+                            break;
                         case 'device_os':
                             $table  = 'lead_devices';
                             $column = 'device_os_name';
@@ -1560,7 +1565,6 @@ class LeadListRepository extends CommonRepository
                         $leadId,
                         $subQueryFilters
                     );
-
                     $groupExpr->add(
                         sprintf('%s (%s)', $func, $subQb->getSQL())
                     );
