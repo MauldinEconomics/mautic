@@ -81,7 +81,13 @@ class FormSubscriber extends CommonSubscriber
     public function onChangeLists(SubmissionEvent $event)
     {
         /** @var \Mautic\LeadBundle\Model\Lead $lead */
-        $lead = $event->getLead();
+        $lead      = $event->getLead();
+        $leadEmail = $lead->getEmail();
+
+        // Short-circuit if the lead doesn't have an email address.
+        if (empty($leadEmail)) {
+            return;
+        }
 
         $properties = $event->getActionConfig();
         $addTo      = $properties['addToLists'];
