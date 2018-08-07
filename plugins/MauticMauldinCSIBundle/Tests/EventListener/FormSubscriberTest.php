@@ -8,12 +8,14 @@
 
 namespace MauticPlugin\MauticMauldinCsiBundle\Tests\EventListener;
 
+use MauticPlugin\MauticMauldinCsiBundle\CSIEvents;
 use MauticPlugin\MauticMauldinCsiBundle\EventListener\FormSubscriber;
+use MauticPlugin\MauticMauldinCsiBundle\Model\CSIListModel;
+use Mautic\FormBundle\Event\SubmissionEvent;
 use Mautic\LeadBundle\Entity\Lead;
+use Mautic\LeadBundle\Model\LeadModel;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use MauticPlugin\MauticMauldinCsiBundle\CSIEvents;
-use MauticPlugin\MauticMauldinCsiBundle\Model\CSIListModel;
 
 
 /**
@@ -156,15 +158,23 @@ class FormSubscriberTest extends KernelTestCase
      */
     protected function getMockCsiListModel()
     {
-        $csiList = $this->createMock(CSIListModel::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $csiList = $this->createMock(CSIListModel::class);
 
         $csiList->expects($this->any())
             ->method('addToList')
             ->will($this->returnCallback([$this, 'addLeadToList']));
 
         return $csiList;
+    }
+
+    /**
+     * Dispatch event.
+     *
+     * @param SubmissionEvent $event
+     */
+    protected function dispatchEvent(SubmissionEvent $event)
+    {
+        $this->dispatcher->dispatch(CSIEvents::ON_MODIFY_CSI_LIST, $event);
     }
 
 }
