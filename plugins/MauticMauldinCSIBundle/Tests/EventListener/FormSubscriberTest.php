@@ -26,29 +26,22 @@ class FormSubscriberTest extends KernelTestCase
     /** @var array */
     protected $leads;
 
-    /** @var LeadModel */
-    protected $leadModel;
-
-    /** @var CSIListModel */
-    protected $csiListModel;
-
     /** @var EventDispatcher */
     protected $dispatcher;
-
-    /** @var FormSubscriber */
-    protected $formSubscriber;
 
     /**
      * Set up.
      */
     public function setUp()
     {
-        $this->leads          = [];
-        $this->leadModel      = $this->createMock(LeadModel::class);
-        $this->csiListModel   = $this->getMockCsiListModel();
-        $this->dispatcher     = new EventDispatcher();
-        $this->formSubscriber = new FormSubscriber($this->leadModel, $this->csiListModel);
-        $this->dispatcher->addSubscriber($formSubscriber);
+        $this->leads      = [];
+        $this->dispatcher = new EventDispatcher();
+        $this->dispatcher->addSubscriber(
+            new FormSubscriber(
+                $this->createMock(LeadModel::class),
+                $this->getMockCsiListModel()
+            )
+        );
     }
 
     /**
