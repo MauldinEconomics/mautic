@@ -76,27 +76,29 @@ class FormSubscriber extends CommonSubscriber
      * Callback: queue the action for adding or removing from a CSI list.
      * Also handles FoF.
      *
-     * @param $action
-     * @param $factory
+     * @param SubmissionEvent $event
      */
     public function onChangeLists(SubmissionEvent $event)
     {
-        $properties = $event->getActionConfig();
-
         /** @var \Mautic\LeadBundle\Model\Lead $lead */
-        $lead       = $event->getLead();
+        $lead      = $event->getLead();
+        $leadEmail = $lead->getEmail();
+
+        // Short-circuit if the lead doesn't have an email address.
+        if (empty($leadEmail)) {
+            return;
+        }
+
+        $properties = $event->getActionConfig();
         $addTo      = $properties['addToLists'];
         $removeFrom = $properties['removeFromLists'];
 
         if (!empty($addTo)) {
-            /*
-             * Gets the FoF cookie. This is required because the other callback
-             * is always executed after this one, so the new lead does not have
-             * the FoF cookies set yet.
-             */
-            if ($lead->isNewlyCreated())
-            {
-                $this->setLeadFoFCookievalues($lead, $event->getRequest()->cookies);
+            // Gets the FoF cookie. This is required because the other callback
+            // is always executed after this one, so the new lead does not have
+            // the FoF cookies set yet.
+            if ($lead->isNewlyCreated()) {
+                $this->setLeadFoFCookieValues($lead, $event->getRequest()->cookies);
             }
 
             $this->csiListModel->addToList($lead, $addTo);
@@ -113,16 +115,17 @@ class FormSubscriber extends CommonSubscriber
      *
      * This is required so that any form submission which creates a lead
      * also set its FoF cookies.
+     *
+     * @param SubmissionEvent $event
      */
     public function onFormSubmit(SubmissionEvent $event)
     {
         /** @var \Mautic\LeadBundle\Entity\Lead $lead */
         $lead = $event->getLead();
-        if ($lead->isNewlyCreated())
-        {
+
+        if ($lead->isNewlyCreated()) {
             $this->setLeadFoFCookieValues($lead, $event->getRequest()->cookies);
         }
-
     }
 
     /**
@@ -130,7 +133,7 @@ class FormSubscriber extends CommonSubscriber
      * exist. Should only be used if the Lead 'is newly created.
      *
      * @param Lead $lead
-     * @param      $cookies
+     * @param \Symfony\Component\HttpFoundation\ParameterBag $cookies
      */
     private function setLeadFoFCookieValues(Lead $lead, $cookies)
     {
