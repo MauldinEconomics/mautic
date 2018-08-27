@@ -13,6 +13,12 @@ define('MAUTIC_ROOT_DIR', __DIR__);
 // Fix for hosts that do not have date.timezone set, it will be reset based on users settings
 date_default_timezone_set('UTC');
 
+// HACK to fix redirect loop behind AWS ELBv2
+if ($_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = 443;
+}
+
 use Mautic\Middleware\MiddlewareBuilder;
 use Symfony\Component\ClassLoader\ApcClassLoader;
 
