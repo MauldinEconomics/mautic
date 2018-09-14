@@ -1740,7 +1740,7 @@ class LeadListRepository extends CommonRepository
                         case 'notIn':
                             foreach ($details['filter'] as &$value) {
                                 $value = $q->expr()->literal(
-                                    InputHelper::clean($value)
+                                    InputHelper::string($value)
                                 );
                             }
                             if ($details['type'] == 'multiselect') {
