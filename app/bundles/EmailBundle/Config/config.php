@@ -472,6 +472,12 @@ return [
             'mautic.transport.sendgrid_api.mail.attachment' => [
                 'class' => \Mautic\EmailBundle\Swiftmailer\SendGrid\Mail\SendGridMailAttachment::class,
             ],
+            'mautic.transport.sendgrid_api.mail.categories' => [
+                'class' => \Mautic\EmailBundle\Swiftmailer\SendGrid\Mail\SendGridMailCategories::class,
+                'arguments' => [
+                    'event_dispatcher',
+                ],
+            ],
             'mautic.transport.sendgrid_api.message' => [
                 'class'     => \Mautic\EmailBundle\Swiftmailer\SendGrid\SendGridApiMessage::class,
                 'arguments' => [
@@ -479,6 +485,7 @@ return [
                     'mautic.transport.sendgrid_api.mail.personalization',
                     'mautic.transport.sendgrid_api.mail.metadata',
                     'mautic.transport.sendgrid_api.mail.attachment',
+                    'mautic.transport.sendgrid_api.mail.categories',
                 ],
             ],
             'mautic.transport.sendgrid_api.response' => [
