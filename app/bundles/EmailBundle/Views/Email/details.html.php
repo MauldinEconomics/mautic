@@ -299,7 +299,7 @@ if (!$isEmbedded) {
                 ]); ?>
             </div>
 
-            <div class="tab-pane bdr-w-0" id="contacts-container">
+            <div class="tab-pane bdr-w-0 page-list" id="contacts-container">
                 <?php echo $contacts; ?>
             </div>
 

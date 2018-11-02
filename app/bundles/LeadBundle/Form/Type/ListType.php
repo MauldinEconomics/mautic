@@ -17,6 +17,7 @@ use Mautic\AssetBundle\Model\AssetModel;
 use Mautic\CategoryBundle\Model\CategoryModel;
 use Mautic\CoreBundle\Form\EventListener\CleanFormSubscriber;
 use Mautic\CoreBundle\Form\EventListener\FormExitSubscriber;
+use Mautic\CoreBundle\Form\Validator\Constraints\CircularDependency;
 use Mautic\CoreBundle\Helper\UserHelper;
 use Mautic\CoreBundle\Security\Permissions\CorePermissions;
 use Mautic\EmailBundle\Model\EmailModel;
@@ -206,6 +207,11 @@ class ListType extends AbstractType
                     'allow_add'      => true,
                     'allow_delete'   => true,
                     'label'          => false,
+                    'constraints'    => [
+                        new CircularDependency([
+                            'message' => 'mautic.core.segment.circular_dependency_exists',
+                        ]),
+                    ],
                 ]
             )->addModelTransformer($filterModalTransformer)
         );
