@@ -129,11 +129,12 @@ class PageSubscriberTest extends WebTestCase
         $requestMock = $this->createMock(Request::class);
 
         return [
-            'request' => $requestMock,
-            'isNew'   => true,
-            'hitId'   => 123,
-            'pageId'  => 456,
-            'leadId'  => 789,
+            'request'    => $requestMock,
+            'isNew'      => true,
+            'hitId'      => 123,
+            'pageId'     => 456,
+            'leadId'     => 789,
+            'isRedirect' => false,
         ];
     }
 
@@ -144,6 +145,6 @@ class PageSubscriberTest extends WebTestCase
      */
     protected function getEmptyPayload()
     {
-        return array_fill_keys(['request', 'isNew', 'hitId', 'pageId', 'leadId'], null);
+        return array_fill_keys(['request', 'isNew', 'hitId', 'pageId', 'leadId', 'isRedirect'], null);
     }
 }
