@@ -244,18 +244,16 @@ if (!$isEmbedded) {
             </div>
             <!--/ email detail collapseable toggler -->
 
-            <?php echo $view->render(
-                'MauticEmailBundle:Email:graph.html.php',
-                [
-                    'stats'         => $stats,
-                    'statsDevices'  => $statsDevices,
-                    'emailType'     => $emailType,
-                    'email'         => $email,
-                    'isVariant'     => ($showTranslations || $showVariants),
-                    'showAllStats'  => $showAllStats,
-                    'dateRangeForm' => $dateRangeForm,
-                ]
-            ); ?>
+            <?php
+            $isVariant = $showTranslations || $showVariants ?: 0;
+            $dateFrom  = new \DateTime($dateRangeForm->children['date_from']->vars['data']);
+            $dateTo    = new \DateTime($dateRangeForm->children['date_to']->vars['data']);
+            ?>
+            <div id="emailGraphStats" data-graph-url="<?php echo $view['router']->path('mautic_email_graph_stats', ['objectId' => $email->getId(), 'isVariant' => $isVariant, 'dateFrom' => $dateFrom->format('Y-m-d'), 'dateTo' => $dateTo->format('Y-m-d')]); ?>">
+                <div class="spinner">
+                    <i class="fa fa-spin fa-spinner"></i>
+                </div>
+            </div>
 
             <?php echo $view['content']->getCustomContent('details.stats.graph.below', $mauticTemplateVars); ?>
 
@@ -327,10 +325,11 @@ if (!$isEmbedded) {
         <!-- preview URL -->
         <div class="panel bg-transparent shd-none bdr-rds-0 bdr-w-0 mt-sm mb-0">
             <div class="panel-heading">
-                <div class="panel-title"><?php echo $view['translator']->trans('mautic.email.urlvariant'); ?></div>
+                <div class="panel-title"><?php echo $view['translator']->trans('mautic.email.preview.url'); ?></div>
             </div>
             <div class="panel-body pt-xs">
                 <div class="input-group">
+                    <div class="input-group-addon"><?php echo $view->render('MauticCoreBundle:Helper:publishstatus_icon.html.php', ['item' => $email, 'model' => 'email', 'query' => 'customToggle=publicPreview']); ?></div>
                     <input onclick="this.setSelectionRange(0, this.value.length);" type="text" class="form-control"
                            readonly
                            value="<?php echo $view->escape($previewUrl); ?>"/>
