@@ -103,7 +103,7 @@ class QueueService
         }
 
         $payload    = json_decode($payload, true);
-        $logPayload = $payload?:[];
+        $logPayload = $payload;
         unset($logPayload['request']);
 
         if (isset($payload['request'])) {
