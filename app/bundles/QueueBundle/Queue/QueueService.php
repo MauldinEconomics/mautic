@@ -91,7 +91,7 @@ class QueueService
         if (empty($payload)) {
             $event = new QueueConsumerEvent([]);
             $event->setResult(QueueConsumerResults::REJECT);
-            $this->logger->debug('QUEUE ERROR: Skipped job for '.$queueName, []);
+            $this->logger->debug('QUEUE ERROR: Skipped empty queue message');
 
             return $event;
         }
