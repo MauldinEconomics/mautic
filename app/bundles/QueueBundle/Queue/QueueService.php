@@ -87,6 +87,15 @@ class QueueService
      */
     public function dispatchConsumerEventFromPayload($payload)
     {
+        if($payload === "") { //blank payload error!
+
+            $event = new QueueConsumerEvent([]);
+            $event->setResult(QueueConsumerResults::REJECT);
+            $this->logger->debug('QUEUE ERROR: Skipped job for '.$queueName, []);
+
+            return $event;
+        }
+
         $payload    = json_decode($payload, true);
         $logPayload = $payload;
         unset($logPayload['request']);
