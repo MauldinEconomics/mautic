@@ -105,6 +105,12 @@ class UpdateHelper
      */
     public function fetchData($overrideCache = false)
     {
+        // We are not running default Mautic!
+        return [
+            'error'   => false,
+            'message' => 'mautic.core.updater.running.latest.version',
+        ];
+
         $cacheFile = $this->factory->getSystemPath('cache').'/lastUpdateCheck.txt';
 
         // Check if we have a cache file and try to return cached data if so

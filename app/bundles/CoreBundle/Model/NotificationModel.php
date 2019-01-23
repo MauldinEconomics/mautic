@@ -181,7 +181,8 @@ class NotificationModel extends FormModel
             return [[], false, ''];
         }
 
-        $this->updateUpstreamNotifications();
+        // We are not running default Mautic!
+        // $this->updateUpstreamNotifications();
 
         $showNewIndicator = false;
         $userId           = ($this->userHelper->getUser()) ? $this->userHelper->getUser()->getId() : 0;
