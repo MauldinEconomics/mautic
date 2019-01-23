@@ -1258,7 +1258,7 @@ class CommonRepository extends EntityRepository
      *
      * @return bool
      */
-    protected function buildLimiterClauses(&$q, array $args)
+    public function buildLimiterClauses(&$q, array $args)
     {
         $start = array_key_exists('start', $args) ? $args['start'] : 0;
         $limit = array_key_exists('limit', $args) ? $args['limit'] : 0;
@@ -1273,7 +1273,7 @@ class CommonRepository extends EntityRepository
      * @param \Doctrine\ORM\QueryBuilder $q
      * @param array                      $args
      */
-    protected function buildOrderByClause(&$q, array $args)
+    public function buildOrderByClause(&$q, array $args)
     {
         $orderBy    = array_key_exists('orderBy', $args) ? $args['orderBy'] : '';
         $orderByDir = $this->sanitize(
@@ -1392,7 +1392,7 @@ class CommonRepository extends EntityRepository
      * @param \Doctrine\ORM\QueryBuilder $q
      * @param array                      $args
      */
-    protected function buildWhereClause(&$q, array $args)
+    public function buildWhereClause(&$q, array $args)
     {
         $filter                    = array_key_exists('filter', $args) ? $args['filter'] : '';
         $filterHelper              = new SearchStringHelper();
