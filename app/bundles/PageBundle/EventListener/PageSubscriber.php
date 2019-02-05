@@ -201,6 +201,14 @@ class PageSubscriber extends CommonSubscriber
         if (null === $hit || null === $lead) {
             $event->setResult(QueueConsumerResults::REJECT);
 
+            // Log the rejection with event payload as context.
+            if ($this->logger) {
+                $this->logger->addNotice(
+                    'QUEUE MESSAGE REJECTED: Lead or Hit not found',
+                    $payload
+                );
+            }
+
             return;
         }
 
