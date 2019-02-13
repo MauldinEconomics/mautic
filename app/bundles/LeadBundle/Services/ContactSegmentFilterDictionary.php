@@ -36,6 +36,17 @@ class ContactSegmentFilterDictionary extends \ArrayIterator
             'null_value'          => 0,
         ];
 
+        $this->translations['lead_email_sent_count'] = [
+            'type'                => ForeignFuncFilterQueryBuilder::getServiceId(),
+            'foreign_table'       => 'email_stats',
+            'foreign_table_field' => 'lead_id',
+            'table'               => 'leads',
+            'table_field'         => 'id',
+            'func'                => 'count',
+            'field'               => 'email_id',
+            'null_value'          => 0,
+        ];
+
         $this->translations['lead_email_received'] = [
             'type'                 => ForeignValueFilterQueryBuilder::getServiceId(),
             'foreign_table_field'  => 'lead_id',
