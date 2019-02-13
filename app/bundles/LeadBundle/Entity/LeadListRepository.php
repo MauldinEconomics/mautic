@@ -1321,7 +1321,7 @@ class LeadListRepository extends CommonRepository
                 case 'lead_email_read_count':
                     $operand = 'EXISTS';
                     $column  = $details['field'];
-                    $table   = 'page_hits';
+                    $table   = 'email_stats';
                     $select  = 'COUNT(id)';
                     if ($details['field'] == 'lead_email_read_count') {
                         $table  = 'email_stats';
@@ -1568,6 +1568,43 @@ class LeadListRepository extends CommonRepository
                     $groupExpr->add(
                         sprintf('%s (%s)', $func, $subQb->getSQL())
                     );
+                    break;
+                case 'lead_email_sent_count':
+                    // Get
+                    $operand = 'EXISTS';
+                    $table   = 'email_stats';
+                    $select  = 'COUNT(id)';
+                    $subqb = $this->getEntityManager()->getConnection()
+                        ->createQueryBuilder()
+                        ->select($select)
+                        ->from(MAUTIC_TABLE_PREFIX.$table, $alias)
+                        ->where($alias.'.lead_id=l.id');
+
+                    $opr = '';
+                    switch ($func) {
+                        case 'eq':
+                            $opr = '=';
+                            break;
+                        case 'gt':
+                            $opr = '>';
+                            break;
+                        case 'gte':
+                            $opr = '>=';
+                            break;
+                        case 'lt':
+                            $opr = '<';
+                            break;
+                        case 'lte':
+                            $opr = '<=';
+                            break;
+                    }
+
+                    if ($opr) {
+                        $parameters[$parameter] = $details['filter'];
+                        $subqb->having($select.$opr.$details['filter']);
+                    }
+
+                    $groupExpr->add(sprintf('%s (%s)', $operand, $subqb->getSQL()));
                     break;
                 case 'stage':
                     // A note here that SQL EXISTS is being used for the eq and neq cases.
