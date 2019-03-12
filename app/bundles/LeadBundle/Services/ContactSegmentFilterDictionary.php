@@ -60,6 +60,12 @@ class ContactSegmentFilterDictionary extends \ArrayIterator
             'field'         => 'date_read',
         ];
 
+        $this->translations['lead_email_read_period'] = [
+            'type'          => ForeignValueFilterQueryBuilder::getServiceId(),
+            'foreign_table' => 'email_stats',
+            'field'         => 'date_read',
+		];
+
         $this->translations['lead_email_sent_date'] = [
             'type'          => ForeignValueFilterQueryBuilder::getServiceId(),
             'foreign_table' => 'email_stats',

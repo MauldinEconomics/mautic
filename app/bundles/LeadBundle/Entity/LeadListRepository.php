@@ -1237,6 +1237,114 @@ class LeadListRepository extends CommonRepository
                     }
                     $groupExpr->add(sprintf('%s (%s)', $operand, $subqb->getSQL()));
                     break;
+                case 'lead_email_read_period':
+                    $func = in_array($func, ['in', 'notIn']) ? 'EXISTS' : 'NOT EXISTS';
+                    $table   = 'email_stats';
+                    $column  = 'date_read';
+
+                    $subqb = $this->getEntityManager()->getConnection()
+                        ->createQueryBuilder()
+                        ->select('id')
+                        ->from(MAUTIC_TABLE_PREFIX.$table, $alias);
+
+                    switch ($func) {
+                        case 'in':
+                            $parameters[$parameter] = $details['filter'];
+
+                            $subqb->where(
+                                $q->expr()
+                                    ->andX(
+                                        $q->expr()
+                                            ->eq($alias.'.'.$column, $exprParameter),
+                                        $q->expr()
+                                            ->eq($alias.'.lead_id', 'l.id')
+                                    )
+                            );
+
+                            foreach ($details['filter'] as &$value) {
+                                $value = $q->expr()->literal(
+                                    InputHelper::string($value)
+                                );
+                            }
+                            if ($details['type'] == 'multiselect') {
+                                foreach ($details['filter'] as $filter) {
+                                    $filter = trim($filter, "'");
+
+                                    if (substr($func, 0, 3) === 'not') {
+                                        $operator = 'NOT REGEXP';
+                                    } else {
+                                        $operator = 'REGEXP';
+                                    }
+
+                                    $groupExpr->add(
+                                        $field." $operator '(([|]|^)$filter([|]|$))'"
+                                    );
+                                }
+                            } else {
+                                $groupExpr->add(
+                                    $this->generateFilterExpression($q, $field, $func, $details['filter'], null)
+                                );
+                            }
+                            $ignoreAutoFilter = true;
+                            break;
+
+                            break;
+                        case 'between':
+                        case 'notBetween':
+                            // Filter should be saved with double || to separate options
+                            $parameter2              = $this->generateRandomParameterName();
+                            $parameters[$parameter]  = $details['filter'][0];
+                            $parameters[$parameter2] = $details['filter'][1];
+                            $exprParameter2          = ":$parameter2";
+                            $ignoreAutoFilter        = true;
+                            $field                   = $column;
+
+                            if ($func == 'between') {
+                                $subqb->where(
+                                    $q->expr()
+                                        ->andX(
+                                            $q->expr()->gte($alias.'.'.$field, $exprParameter),
+                                            $q->expr()->lt($alias.'.'.$field, $exprParameter2),
+                                            $q->expr()->eq($alias.'.lead_id', 'l.id')
+                                        )
+                                );
+                            } else {
+                                $subqb->where(
+                                    $q->expr()
+                                        ->andX(
+                                            $q->expr()->lt($alias.'.'.$field, $exprParameter),
+                                            $q->expr()->gte($alias.'.'.$field, $exprParameter2),
+                                            $q->expr()->eq($alias.'.lead_id', 'l.id')
+                                        )
+                                );
+                            }
+                            break;
+                        default:
+                            $parameters[$parameter] = $details['filter'];
+
+                            $subqb->where(
+                                $q->expr()
+                                    ->andX(
+                                        $q->expr()
+                                            ->$func(
+                                                $alias.'.'.$column,
+                                                $exprParameter
+                                            ),
+                                        $q->expr()
+                                            ->eq($alias.'.lead_id', 'l.id')
+                                    )
+                            );
+                            break;
+                    }
+                    // Specific lead
+                    if (!empty($leadId)) {
+                        $subqb->andWhere(
+                            $subqb->expr()
+                                ->eq($alias.'.lead_id', $leadId)
+                        );
+                    }
+                    $groupExpr->add(sprintf('%s (%s)', $operand, $subqb->getSQL()));
+                    break;
                 case 'page_id':
                 case 'email_id':
                 case 'redirect_id':

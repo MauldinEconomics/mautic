@@ -373,6 +373,19 @@ class ListModel extends FormModel
                 ),
                 'object' => 'lead',
             ],
+            'lead_email_read_period' => [
+                'label'      => $this->translator->trans('mautic.lead.list.filter.lead_email_read_period'),
+                'properties' => ['type' => 'text'],
+                'operators'  => $this->getOperatorsForFieldType(
+                    [
+                        'include' => [
+                            'in',
+                            '!in',``
+                        ],
+                    ]
+                ),
+                'object' => 'lead',
+            ],
             'lead_email_read_count' => [
                 'label'      => $this->translator->trans('mautic.lead.list.filter.lead_email_read_count'),
                 'properties' => ['type' => 'number'],
