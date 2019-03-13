@@ -186,16 +186,46 @@ class PageSubscriber extends CommonSubscriber
         $payload                = $event->getPayload();
         $request                = $payload['request'];
         $trackingNewlyGenerated = $payload['isNew'];
+        $hitId                  = $payload['hitId'];
         $pageId                 = $payload['pageId'];
         $leadId                 = $payload['leadId'];
         $hitRepo                = $this->em->getRepository('MauticPageBundle:Hit');
         $pageRepo               = $this->em->getRepository('MauticPageBundle:Page');
         $leadRepo               = $this->em->getRepository('MauticLeadBundle:Lead');
-        $hit                    = $hitRepo->find((int) $payload['hitId']);
+        $hit                    = $hitId ? $hitRepo->find((int) $hitId) : null;
         $page                   = $pageId ? $pageRepo->find((int) $pageId) : null;
         $lead                   = $leadId ? $leadRepo->find((int) $leadId) : null;
 
-        $this->pageModel->processPageHit($hit, $page, $request, $lead, $trackingNewlyGenerated, false);
-        $event->setResult(QueueConsumerResults::ACKNOWLEDGE);
+        // On the off chance that the queue contains a message which does not
+        // reference a valid Hit or Lead, discard it to avoid clogging the queue.
+        if (null === $hit || null === $lead) {
+            $event->setResult(QueueConsumerResults::REJECT);
+
+            // Log the rejection with event payload as context.
+            if ($this->logger) {
+                $this->logger->addNotice(
+                    'QUEUE MESSAGE REJECTED: Lead or Hit not found',
+                    $payload
+                );
+            }
+
+            return;
+        }
+
+        // Also reject messages when processing causes any other exception.
+        try {
+            $this->pageModel->processPageHit($hit, $page, $request, $lead, $trackingNewlyGenerated, false);
+            $event->setResult(QueueConsumerResults::ACKNOWLEDGE);
+        } catch (\Exception $e) {
+            $event->setResult(QueueConsumerResults::REJECT);
+
+            // Log the exception with event payload as context.
+            if ($this->logger) {
+                $this->logger->addError(
+                    'QUEUE CONSUMER ERROR ('.QueueEvents::PAGE_HIT.'): '.$e->getMessage(),
+                    $payload
+                );
+            }
+        }
     }
 }
