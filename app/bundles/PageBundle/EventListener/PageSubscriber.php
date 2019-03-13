@@ -189,11 +189,12 @@ class PageSubscriber extends CommonSubscriber
         $hitId                  = $payload['hitId'];
         $pageId                 = $payload['pageId'];
         $leadId                 = $payload['leadId'];
+        $isRedirect             = !empty($payload['isRedirect']);
         $hitRepo                = $this->em->getRepository('MauticPageBundle:Hit');
         $pageRepo               = $this->em->getRepository('MauticPageBundle:Page');
+        $redirectRepo           = $this->em->getRepository('MauticPageBundle:Redirect');
         $leadRepo               = $this->em->getRepository('MauticLeadBundle:Lead');
         $hit                    = $hitId ? $hitRepo->find((int) $hitId) : null;
-        $page                   = $pageId ? $pageRepo->find((int) $pageId) : null;
         $lead                   = $leadId ? $leadRepo->find((int) $leadId) : null;
 
         // On the off chance that the queue contains a message which does not
@@ -210,6 +211,12 @@ class PageSubscriber extends CommonSubscriber
             }
 
             return;
+        }
+
+        if ($isRedirect) {
+            $page = $pageId ? $redirectRepo->find((int) $pageId) : null;
+        } else {
+            $page = $pageId ? $pageRepo->find((int) $pageId) : null;
         }
 
         // Also reject messages when processing causes any other exception.
