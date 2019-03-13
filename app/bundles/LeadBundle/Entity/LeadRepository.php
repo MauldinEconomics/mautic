@@ -608,6 +608,8 @@ class LeadRepository extends CommonRepository implements CustomFieldRepositoryIn
             }
         }
 
+        $qb->groupBy($contactColumnName);
+
         $args['qb'] = $qb;
 
         return $this->getEntities($args);
