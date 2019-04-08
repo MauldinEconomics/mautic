@@ -15,7 +15,9 @@ use Mautic\QueueBundle\Event as Events;
 use Mautic\QueueBundle\Queue\QueueProtocol;
 use PhpAmqpLib\Message\AMQPMessage;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Type;
 
 /**
  * Class RabbitMqSubscriber.
@@ -72,6 +74,12 @@ class RabbitMqSubscriber extends AbstractQueueSubscriber
             'durable'     => true,
         ]);
         $consumer->setRoutingKey($event->getQueueName());
+
+        // Check event for positive execution time and set on Consumer
+        if (0 < ($timeout = $event->getTimeout())) {
+            $consumer->setGracefulMaxExecutionDateTimeFromSecondsInTheFuture($timeout);
+        }
+
         $consumer->consume($event->getMessages());
     }
 
@@ -186,6 +194,52 @@ class RabbitMqSubscriber extends AbstractQueueSubscriber
                     'autocomplete' => 'off',
                 ],
                 'data' => empty($options['data']['rabbitmq_password']) ? 'guest' : $options['data']['rabbitmq_password'],
+            ]
+        );
+
+        $event->addFormField(
+            'rabbitmq_idle_timeout',
+            'text',
+            [
+                'label'      => 'mautic.queue.config.rabbitmq.idle_timeout',
+                'label_attr' => ['class' => 'control-label'],
+                'attr'       => [
+                    'class'        => 'form-control',
+                    'data-show-on' => $showConditions,
+                    'tooltip'      => 'mautic.queue.config.rabbitmq.idle_timeout.tooltip',
+                ],
+                'constraints' => [
+                    new NotBlank(['message' => 'mautic.core.value.required']),
+                    new GreaterThanOrEqual(0),
+                    new Type([
+                        'type'    => 'numeric',
+                        'message' => 'mautic.core.value.type',
+                    ]),
+                ],
+                'data' => empty($options['data']['rabbitmq_idle_timeout']) ? '0' : $options['data']['rabbitmq_idle_timeout'],
+            ]
+        );
+
+        $event->addFormField(
+            'rabbitmq_idle_timeout_exit_code',
+            'text',
+            [
+                'label'      => 'mautic.queue.config.rabbitmq.idle_timeout_exit_code',
+                'label_attr' => ['class' => 'control-label'],
+                'attr'       => [
+                    'class'        => 'form-control',
+                    'data-show-on' => $showConditions,
+                    'tooltip'      => 'mautic.queue.config.rabbitmq.idle_timeout_exit_code.tooltip',
+                ],
+                'constraints' => [
+                    new NotBlank(['message' => 'mautic.core.value.required']),
+                    new GreaterThanOrEqual(0),
+                    new Type([
+                        'type'    => 'numeric',
+                        'message' => 'mautic.core.value.type',
+                    ]),
+                ],
+                'data' => empty($options['data']['rabbitmq_idle_timeout_exit_code']) ? '0' : $options['data']['rabbitmq_idle_timeout_exit_code'],
             ]
         );
     }
