@@ -248,6 +248,7 @@ class DynamicContentSubscriber extends CommonSubscriber
         $content = str_replace(array_keys($result), array_values($result), $content);
 
         // replace slots
+        libxml_use_internal_errors(true);
         $dom = new DOMDocument('1.0', 'utf-8');
         $dom->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'), LIBXML_NOERROR);
         $xpath = new DOMXPath($dom);
