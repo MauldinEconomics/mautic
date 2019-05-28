@@ -571,6 +571,11 @@ return [
                 'arguments' => 'mautic.factory',
                 'alias'     => 'lead_action_removedonotcontact',
             ],
+            'mautic.form.type.lead.submitaction.adddonotcontact' => [
+                'class'     => 'Mautic\LeadBundle\Form\Type\ActionAddDoNotContact',
+                'arguments' => 'mautic.factory',
+                'alias'     => 'lead_action_adddonotcontact',
+            ],
             'mautic.form.type.lead.submitaction.changelist' => [
                 'class'     => 'Mautic\LeadBundle\Form\Type\EventListType',
                 'arguments' => ['mautic.factory'],
