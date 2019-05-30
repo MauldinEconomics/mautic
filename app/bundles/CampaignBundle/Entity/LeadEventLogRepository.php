@@ -398,7 +398,7 @@ class LeadEventLogRepository extends CommonRepository
             return new ArrayCollection();
         }
 
-        $this->getSlaveConnection($limiter);
+        //$this->getSlaveConnection($limiter);
 
         $q = $this->createQueryBuilder('o');
 
