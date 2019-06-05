@@ -1084,7 +1084,15 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             }
 
             $options['listId'] = $list->getId();
+            if($logger !== null) {
+                $getPendingLeads = microtime(true);
+                $logger->writeln("getPendingLeads");
+            }
             $leads             = $this->getPendingLeads($email, $list->getId(), false, $limit, true, $minContactId, $maxContactId, false, false);
+
+            if($logger !== null) {
+                $logger->writeln(sprintf("getPendingLeads finished in %s seconds",microtime(true)-$getPendingLeads));
+            }
             $leadCount         = count($leads);
 
             while ($leadCount) {
@@ -1095,7 +1103,14 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                     $limit -= $leadCount;
                 }
 
+                if($logger !== null) {
+                    $sendEmail = microtime(true);
+                    $logger->writeln("sendEmail to $leadCount leads");
+                }
                 $listErrors = $this->sendEmail($email, $leads, $options);
+                if($logger !== null) {
+                    $logger->writeln(sprintf("sendEmail finished in %s seconds",microtime(true)-$sendEmail));
+                }
 
                 if (!empty($listErrors)) {
                     $listFailedCount = count($listErrors);
@@ -1324,6 +1339,8 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         $dncAsError          = ArrayHelper::getValue('dnc_as_error', $options, false);
         $errors              = [];
 
+        $logger = $this->get('monolog.logger.mautic');
+
         if (empty($channel)) {
             $channel = (isset($options['source'])) ? $options['source'] : [];
         }
@@ -1354,6 +1371,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         //get email settings such as templates, weights, etc
         $emailSettings = &$this->getEmailSettings($email);
 
+        $timeIgnoreDnc = microtime(true);
         if (!$ignoreDNC) {
             $dnc = $emailRepo->getDoNotEmailList($leadIds);
 
@@ -1367,7 +1385,11 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                 }
             }
         }
+        if($logger !== null) {
+            $logger->writeln(sprintf("dnc remove took %s seconds", microtime(true)-$timeIgnoreDnc));
+        }
 
+        $timeFreqRules = microtime(true);
         // Process frequency rules for email
         if ($isMarketing && count($sendTo)) {
             $campaignEventId = (is_array($channel) && !empty($channel) && 'campaign.event' === $channel[0] && !empty($channel[1])) ? $channel[1]
@@ -1383,6 +1405,10 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             );
         }
 
+        if($logger !== null) {
+            $logger->writeln(sprintf("freq rules took %s seconds", microtime(true)-$timeFreqRules));
+        }
+        $timeCompHyd = microtime(true);
         //get a count of leads
         $count = count($sendTo);
 
@@ -1397,6 +1423,9 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
 
         // Hydrate contacts with company profile fields
         $this->getContactCompanies($sendTo);
+        if($logger !== null) {
+            $logger->writeln(sprintf("company hydrate took %s seconds", microtime(true)-$timeCompHyd));
+        }
 
         foreach ($emailSettings as $eid => $details) {
             if (isset($details['send_weight'])) {
@@ -1412,6 +1441,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         // Organize the contacts according to the variant and translation they are to receive
         $groupedContactsByEmail = [];
         $offset                 = 0;
+        $timeVariantOrg = microtime(true);
         foreach ($emailSettings as $eid => $details) {
             if (empty($details['limit'])) {
                 continue;
@@ -1454,6 +1484,10 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             }
         }
 
+        if($logger !== null) {
+            $logger->writeln(sprintf("variat org took %s seconds", microtime(true)-$timeVariantOrg));
+        }
+
         foreach ($groupedContactsByEmail as $parentId => $translatedEmails) {
             $useSettings = $emailSettings[$parentId];
             foreach ($translatedEmails as $translatedId => $contacts) {
@@ -1462,6 +1496,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                 $this->sendModel->setEmail($emailEntity, $channel, $customHeaders, $assetAttachments, $useSettings['slots'])
                     ->setListId($listId);
 
+                $timeSend = microtime(true);
                 foreach ($contacts as $contact) {
                     try {
                         $this->sendModel->setContact($contact, $tokens)
@@ -1476,6 +1511,10 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
                     } catch (FailedToSendToContactException $exception) {
                         // move along to the next contact
                     }
+                }
+
+                if($logger !== null) {
+                    $logger->writeln(sprintf("send took %s seconds to send %s", microtime(true)-$timeSend, count($contacts)));
                 }
             }
         }
