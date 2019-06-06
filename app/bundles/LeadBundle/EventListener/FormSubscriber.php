@@ -109,7 +109,7 @@ class FormSubscriber extends CommonSubscriber
             'eventName'         => LeadEvents::FORM_SUBMIT_REMOVE_DO_NO_CONTACT,
             'allowCampaignForm' => true,
         ];
-        $event->addSubmitAction('lead.removeronotcontact', $action);
+        $event->addSubmitAction('lead.removedonotcontact', $action);
 
         // score contact's companies
         $action = [
