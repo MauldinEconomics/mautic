@@ -16,6 +16,7 @@ use Mautic\EmailBundle\Model\EmailModel;
 use Mautic\FormBundle\Event\FormBuilderEvent;
 use Mautic\FormBundle\Event\SubmissionEvent;
 use Mautic\FormBundle\FormEvents;
+use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\LeadEvents;
 
 /**
@@ -46,6 +47,7 @@ class FormSubscriber extends CommonSubscriber
         return [
             FormEvents::FORM_ON_BUILD                    => ['onFormBuilder', 0],
             LeadEvents::FORM_SUBMIT_REMOVE_DO_NO_CONTACT => ['removeFromDoNotContact', 0],
+            LeadEvents::FORM_SUBMIT_ADD_DO_NO_CONTACT    => ['addToDoNotContact', 0],
         ];
     }
 
@@ -111,6 +113,18 @@ class FormSubscriber extends CommonSubscriber
         ];
         $event->addSubmitAction('lead.removeronotcontact', $action);
 
+        // add Do Not Contact
+        $action = [
+            'group'             => 'mautic.lead.lead.submitaction',
+            'label'             => 'mautic.lead.lead.events.adddonotcontact',
+            'description'       => 'mautic.lead.lead.events.addonotcontact_descr',
+            'formType'          => 'lead_action_adddonotcontact',
+            'formTheme'         => 'MauticLeadBundle:FormTheme\\ActionAddDoNotContact',
+            'eventName'         => LeadEvents::FORM_SUBMIT_ADD_DO_NO_CONTACT,
+            'allowCampaignForm' => true,
+        ];
+        $event->addSubmitAction('lead.adddonotcontact', $action);
+
         // score contact's companies
         $action = [
             'group'       => 'mautic.lead.lead.submitaction',
@@ -132,6 +146,19 @@ class FormSubscriber extends CommonSubscriber
         $form = $event->getResults();
         if (isset($form['email']) && !empty($form['email'])) {
             $this->emailModel->removeDoNotContact($form['email']);
+        }
+    }
+
+    /**
+     * Trigger event for when a form is submitted.
+     *
+     * @param SubmissionEvent $event
+     */
+    public function addToDoNotContact(SubmissionEvent $event)
+    {
+        $form = $event->getResults();
+        if (isset($form['email']) && !empty($form['email'])) {
+            $this->emailModel->setEmailDoNotContact($form['email'], DoNotContact::MANUAL, 'FormAction');
         }
     }
 }
