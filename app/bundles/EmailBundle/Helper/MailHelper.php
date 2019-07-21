@@ -1503,9 +1503,9 @@ class MailHelper
     /**
      * @return bool
      */
-    public function isUnsubscribedHeaderDisabled()
+    public function isUnsubscribeHeaderEmailPartDisabled()
     {
-        return $this->factory->getParameter('disable_unsubscribe_header');
+        return $this->factory->getParameter('disable_unsubscribe_header_email_part');
     }
 
     /**
@@ -1513,10 +1513,6 @@ class MailHelper
      */
     private function getUnsubscribeHeader()
     {
-        if ($this->isUnsubscribedHeaderDisabled()) {
-            return false;
-        }
-
         if ($this->idHash) {
             $url = $this->factory->getRouter()->generate('mautic_email_unsubscribe', ['idHash' => $this->idHash], UrlGeneratorInterface::ABSOLUTE_URL);
 
