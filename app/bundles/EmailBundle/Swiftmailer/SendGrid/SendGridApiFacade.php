@@ -14,6 +14,9 @@ namespace Mautic\EmailBundle\Swiftmailer\SendGrid;
 use Mautic\EmailBundle\Swiftmailer\Exception\SendGridBadLoginException;
 use Mautic\EmailBundle\Swiftmailer\Exception\SendGridBadRequestException;
 use Mautic\EmailBundle\Swiftmailer\SwiftmailerFacadeInterface;
+use SendGrid\Mail;
+use SendGrid\Response;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class SendGridApiFacade implements SwiftmailerFacadeInterface
 {
@@ -32,14 +35,21 @@ class SendGridApiFacade implements SwiftmailerFacadeInterface
      */
     private $sendGridApiResponse;
 
+    /**
+     * @var EventDispatcherInterface
+     */
+    private $dispatcher;
+
     public function __construct(
         SendGridWrapper $sendGridWrapper,
         SendGridApiMessage $sendGridApiMessage,
-        SendGridApiResponse $sendGridApiResponse
+        SendGridApiResponse $sendGridApiResponse,
+        EventDispatcherInterface $dispatcher
     ) {
         $this->sendGridWrapper     = $sendGridWrapper;
         $this->sendGridApiMessage  = $sendGridApiMessage;
         $this->sendGridApiResponse = $sendGridApiResponse;
+        $this->dispatcher          = $dispatcher;
     }
 
     /**
@@ -51,6 +61,8 @@ class SendGridApiFacade implements SwiftmailerFacadeInterface
     {
         $mail = $this->sendGridApiMessage->getMessage($message);
 
+        $this->dispatchGetMailMessageEvent($mail, $message);
+
         $response = $this->sendGridWrapper->send($mail);
 
         try {
@@ -60,5 +72,34 @@ class SendGridApiFacade implements SwiftmailerFacadeInterface
         } catch (SendGridBadRequestException $e) {
             throw new \Swift_TransportException($e->getMessage());
         }
+
+        $this->dispatchMailSendResponseEvent($response, $mail, $message);
+    }
+
+    /**
+     * Dispatch GET_MAIL_MESSAGE event.
+     *
+     * @param Mail                $mail
+     * @param \Swift_Mime_Message $message
+     */
+    private function dispatchGetMailMessageEvent(Mail $mail, \Swift_Mime_Message $message)
+    {
+        $event = new Event\GetMailMessageEvent($mail, $message);
+
+        $this->dispatcher->dispatch(SendGridMailEvents::GET_MAIL_MESSAGE, $event);
+    }
+
+    /**
+     * Dispatch MAIL_SEND_RESPONSE event.
+     *
+     * @param Response            $response
+     * @param Mail                $mail
+     * @param \Swift_Mime_Message $message
+     */
+    private function dispatchMailSendResponseEvent(Response $response, Mail $mail, \Swift_Mime_Message $message)
+    {
+        $event = new Event\MailSendResponseEvent($response, $mail, $message);
+
+        $this->dispatcher->dispatch(SendGridMailEvents::MAIL_SEND_RESPONSE, $event);
     }
 }
