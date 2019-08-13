@@ -476,6 +476,7 @@ return [
                     'mautic.transport.sendgrid_api.sendgrid_wrapper',
                     'mautic.transport.sendgrid_api.message',
                     'mautic.transport.sendgrid_api.response',
+                    'event_dispatcher',
                 ],
             ],
             'mautic.transport.sendgrid_api.mail.base' => [
@@ -500,7 +501,6 @@ return [
                     'mautic.transport.sendgrid_api.mail.personalization',
                     'mautic.transport.sendgrid_api.mail.metadata',
                     'mautic.transport.sendgrid_api.mail.attachment',
-                    'event_dispatcher',
                 ],
             ],
             'mautic.transport.sendgrid_api.response' => [
