@@ -956,9 +956,14 @@ class LeadRepository extends CommonRepository implements CustomFieldRepositoryIn
     public function updateLastActive($leadId)
     {
         $dt     = new DateTimeHelper();
-        $fields = ['last_active' => $dt->toUtcString()];
-
-        $this->getEntityManager()->getConnection()->update(MAUTIC_TABLE_PREFIX.'leads', $fields, ['id' => $leadId]);
+        $em->getConnection()->prepare("INSERT INTO ".MAUTIC_TABLE_PREFIX.'leads_last_active'." SET 
+            last_active = :lastActive, 
+            lead_id = :leadId 
+            ON DUPLICATE KEY UPDATE
+            last_active = :lastActive")
+           ->bindValue("lastActive", $dt->toUtcString())
+           ->bindValue("leadId", $leadId)
+           ->execute();
     }
 
     /**
