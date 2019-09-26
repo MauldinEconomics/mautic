@@ -958,7 +958,19 @@ class LeadRepository extends CommonRepository implements CustomFieldRepositoryIn
         $dt     = new DateTimeHelper();
         $fields = ['last_active' => $dt->toUtcString()];
 
-        $this->getEntityManager()->getConnection()->update(MAUTIC_TABLE_PREFIX.'leads_last_active', $fields, ['lead_id' => $leadId]);
+        $q = $this->getEntityManager()->getConnection()->createQueryBuilder()
+            ->select('lla.id')
+            ->from(MAUTIC_TABLE_PREFIX.'leads_last_active', 'lla')
+            ->where('lla = :id')
+            ->setParameter('id', $leadId);
+
+        $result = $q->execute()->fetchAll();
+
+        if (count($result)) {
+            $this->getEntityManager()->getConnection()->update(MAUTIC_TABLE_PREFIX.'leads_last_active', $fields, ['lead_id' => $leadId]);
+        } else {
+            $this->getEntityManager()->getConnection()->insert(MAUTIC_TABLE_PREFIX.'leads_last_active', array_merge($fields, ['lead_id' => $leadId]));
+        }
     }
 
     /**
