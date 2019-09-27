@@ -966,8 +966,7 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
         $storeToCache = true
     ) {
         $variantIds = ($includeVariants) ? $email->getRelatedEntityIds() : null;
-        $total      = "???";
-        /*$this->getRepository()->getEmailPendingLeads(
+        $total      = $this->getRepository()->getEmailPendingLeads(
             $email->getId(),
             $variantIds,
             $listId,
@@ -989,7 +988,6 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
 
             $this->cacheStorageHelper->set(sprintf('%s|%s|%s', 'email', $email->getId(), 'pending'), $toStore);
         }
-         */
 
         return $total;
     }
