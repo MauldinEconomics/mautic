@@ -513,6 +513,15 @@ return [
                 'class'     => \Mautic\EmailBundle\Swiftmailer\SendGrid\SendGridWrapper::class,
                 'arguments' => [
                     'mautic.transport.sendgrid_api.sendgrid',
+                    'mautic.transport.sendgrid_api.sendgrid_factory',
+                ],
+            ],
+            'mautic.transport.sendgrid_api.sendgrid_factory' => [
+                'class'     => \Mautic\EmailBundle\Swiftmailer\SendGrid\SendGridFactory::class,
+                'arguments' => [
+                    // \SendGrid::class,
+                    '%mautic.mailer_api_key%',
+                    '%mautic.mailer_api_extra_keys%',
                 ],
             ],
             'mautic.transport.sendgrid_api.sendgrid' => [
@@ -756,6 +765,7 @@ return [
     ],
     'parameters' => [
         'mailer_api_key'               => null, // Api key from mail delivery provider.
+        'mailer_api_extra_keys'        => [], // Additional Api keys for, e.g., SendGrid API.
         'mailer_from_name'             => 'Mautic',
         'mailer_from_email'            => 'email@yoursite.com',
         'mailer_return_path'           => null,
