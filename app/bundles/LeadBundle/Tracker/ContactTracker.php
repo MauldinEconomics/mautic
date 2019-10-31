@@ -149,9 +149,9 @@ class ContactTracker
             $this->logger->addDebug('CONTACT: Tracking session for contact ID# '.$this->trackedContact->getId().' through '.$this->request->getMethod().' '.$this->request->getRequestUri());
         }
 
-        // Log last active for the tracked contact
-        if (!defined('MAUTIC_LEAD_LASTACTIVE_LOGGED')) {
-            $this->leadRepository->updateLastActive($this->trackedContact->getId());
+        // Log last active for the tracked contact if it has an ID
+        if (!defined('MAUTIC_LEAD_LASTACTIVE_LOGGED') && ($leadId = $this->trackedContact->getId())) {
+            $this->leadRepository->updateLastActive($leadId);
             define('MAUTIC_LEAD_LASTACTIVE_LOGGED', 1);
         }
 
