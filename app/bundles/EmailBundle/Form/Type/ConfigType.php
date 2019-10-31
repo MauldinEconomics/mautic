@@ -390,7 +390,7 @@ class ConfigType extends AbstractType
                             "plain",
                             "login",
                             "cram-md5"
-                        ], 
+                        ],
                         "config_emailconfig_mailer_transport":['.$this->transportType->getServiceRequiresUser().']
                     }',
                     'data-hide-on' => '{"config_emailconfig_mailer_transport":['.$this->transportType->getServiceDoNotNeedUser().']}',
@@ -417,7 +417,7 @@ class ConfigType extends AbstractType
                             "plain",
                             "login",
                             "cram-md5"
-                        ], 
+                        ],
                         "config_emailconfig_mailer_transport":['.$this->transportType->getServiceRequiresPassword().']
                     }',
                     'data-hide-on' => '{"config_emailconfig_mailer_transport":['.$this->transportType->getServiceDoNotNeedPassword().']}',
@@ -444,6 +444,29 @@ class ConfigType extends AbstractType
                     'onchange'     => 'Mautic.disableSendTestEmailButton()',
                 ],
                 'required'   => false,
+            ]
+        );
+
+        $builder->add(
+            'mailer_api_keys',
+            SortableListType::class,
+            // 'password',
+            [
+                'label'      => 'mautic.email.config.mailer.apikey',
+                'label_attr' => ['class' => 'control-label'],
+                'attr'       => [
+                    'class'        => 'form-control',
+                    'data-show-on' => '{"config_emailconfig_mailer_transport":['.$this->transportType->getServiceRequiresApiKey().']}',
+                    'tooltip'      => 'mautic.email.config.mailer.apikey.tooltop',
+                    'autocomplete' => 'off',
+                    'placeholder'  => 'mautic.email.config.mailer.apikey.placeholder',
+                    'onchange'     => 'Mautic.disableSendTestEmailButton()',
+                ],
+                'required'        => false,
+                'option_required' => true,
+                'with_labels'     => true,
+                'key_value_pairs' => true,
+                'entry_type'      => 'password',
             ]
         );
 

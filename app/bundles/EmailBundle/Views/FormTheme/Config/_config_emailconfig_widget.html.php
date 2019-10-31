@@ -68,6 +68,7 @@ $template  = '<div class="col-md-6">{content}</div>';
                 <?php echo $view['form']->rowIfExists($fields, 'mailer_user', $template); ?>
                 <?php echo $view['form']->rowIfExists($fields, 'mailer_password', $template); ?>
                 <?php echo $view['form']->rowIfExists($fields, 'mailer_api_key', $template); ?>
+                <?php echo $view['form']->rowIfExists($fields, 'mailer_api_keys', $template); ?>
             </div>
 
             <?php if (isset($fields['mailer_transport'])): ?>
@@ -180,4 +181,3 @@ $template  = '<div class="col-md-6">{content}</div>';
         </div>
     </div>
 </div>
-
