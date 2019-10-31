@@ -25,9 +25,14 @@ class SendGridWrapper
      */
     private $sendGrid;
 
-    public function __construct(\SendGrid $sendGrid)
+    /** @var SendGridFactory */
+    private $factory;
+
+
+    public function __construct(\SendGrid $sendGrid, SendGridFactory $factory)
     {
         $this->sendGrid = $sendGrid;
+        $this->factory  = $factory;
     }
 
     /**
