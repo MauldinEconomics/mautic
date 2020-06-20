@@ -11,11 +11,11 @@
 
 namespace Mautic\EmailBundle\Swiftmailer\Transport;
 
-use Mautic\EmailBundle\Swiftmailer\SendGrid\Callback\SendGridApiCallback;
-use Mautic\EmailBundle\Swiftmailer\SendGrid\SendGridApiFacade;
-use Swift_Events_EventListener;
-use Swift_Mime_Message;
 use Symfony\Component\HttpFoundation\Request;
+use Swift_Mime_Message;
+use Swift_Events_EventListener;
+use Mautic\EmailBundle\Swiftmailer\SendGrid\SendGridApiFacade;
+use Mautic\EmailBundle\Swiftmailer\SendGrid\Callback\SendGridApiCallback;
 
 class SendgridApiTransport implements \Swift_Transport, TokenTransportInterface, CallbackTransportInterface
 {
@@ -138,7 +138,12 @@ class SendgridApiTransport implements \Swift_Transport, TokenTransportInterface,
     {
         //Sengrid counts all email address (to, cc and bcc)
         //https://sendgrid.com/docs/API_Reference/Web_API_v3/Mail/errors.html#message.personalizations
-        return count($message->getTo()) + count($message->getCc()) + count($message->getBcc()) + $toBeAdded;
+
+        $toCount  = is_countable($message->getTo()) ? count($message->getTo()) : 0;
+        $ccCount  = is_countable($message->getCc()) ? count($message->getCc()) : 0;
+        $bccCount = is_countable($message->getBcc()) ? count($message->getBcc()) : 0;
+
+        return $toCount + $ccCount + $bccCount + $toBeAdded;
     }
 
     /**
