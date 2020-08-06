@@ -11,14 +11,14 @@
 
 namespace Mautic\QueueBundle\Queue;
 
-use Mautic\CoreBundle\Helper\CoreParametersHelper;
-use Mautic\QueueBundle\Event\QueueConsumerEvent;
-use Mautic\QueueBundle\Event\QueueEvent;
-use Mautic\QueueBundle\Helper\QueueRequestHelper;
-use Mautic\QueueBundle\QueueEvents;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\LoggerInterface;
+use Mautic\QueueBundle\QueueEvents;
+use Mautic\QueueBundle\Helper\QueueRequestHelper;
+use Mautic\QueueBundle\Event\QueueEvent;
+use Mautic\QueueBundle\Event\QueueConsumerEvent;
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 
 /**
  * Class QueueService.
@@ -93,6 +93,15 @@ class QueueService
      */
     public function dispatchConsumerEventFromPayload($payload)
     {
+        // REJECT empty/blank payloads
+        if (empty($payload)) {
+            $event = new QueueConsumerEvent([]);
+            $event->setResult(QueueConsumerResults::REJECT);
+            $this->logger->debug('QUEUE ERROR: Skipped empty queue message');
+
+            return $event;
+        }
+
         $payload    = json_decode($payload, true);
         $logPayload = $payload;
         unset($logPayload['request']);
