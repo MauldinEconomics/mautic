@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "573b479739891bf79e969509b9c9d411",
+    "content-hash": "3510ecf6c8f539a2b53a7e33fd7c48b6",
     "packages": [
         {
             "name": "aws/aws-sdk-php",
@@ -1155,16 +1155,16 @@
         },
         {
             "name": "doctrine/doctrine-bundle",
-            "version": "1.12.13",
+            "version": "1.12.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/DoctrineBundle.git",
-                "reference": "85460b85edd8f61a16ad311e7ffc5d255d3c937c"
+                "reference": "df45ea464f201e6ab6ba02757204eaaf4120bcfa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/85460b85edd8f61a16ad311e7ffc5d255d3c937c",
-                "reference": "85460b85edd8f61a16ad311e7ffc5d255d3c937c",
+                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/df45ea464f201e6ab6ba02757204eaaf4120bcfa",
+                "reference": "df45ea464f201e6ab6ba02757204eaaf4120bcfa",
                 "shasum": ""
             },
             "require": {
@@ -1207,7 +1207,7 @@
             "type": "symfony-bundle",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "2.3.x-dev"
+                    "dev-master": "1.12.x-dev"
                 }
             },
             "autoload": {
@@ -1259,7 +1259,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2020-11-14T13:38:44+00:00"
+            "time": "2020-11-07T08:28:55+00:00"
         },
         {
             "name": "doctrine/doctrine-cache-bundle",
@@ -13922,13 +13922,7 @@
             "keywords": [
                 "timer"
             ],
-            "funding": [
-                {
-                    "url": "https://github.com/sebastianbergmann",
-                    "type": "github"
-                }
-            ],
-            "time": "2020-10-26T13:16:10+00:00"
+            "time": "2019-09-17T06:23:10+00:00"
         },
         {
             "name": "phpunit/phpunit",
