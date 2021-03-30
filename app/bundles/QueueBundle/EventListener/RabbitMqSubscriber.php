@@ -66,6 +66,8 @@ class RabbitMqSubscriber extends AbstractQueueSubscriber
             $consumer->setGracefulMaxExecutionDateTimeFromSecondsInTheFuture($timeout);
         }
 
-        $consumer->consume($event->getMessages());
+        $exitCode = $consumer->consume($event->getMessages());
+
+        $event->setExitCode($exitCode);
     }
 }
