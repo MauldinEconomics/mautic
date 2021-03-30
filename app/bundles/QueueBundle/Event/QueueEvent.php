@@ -44,6 +44,11 @@ class QueueEvent extends CommonEvent
     private $timeout;
 
     /**
+     * @var int
+     */
+    private $exitCode = 0;
+
+    /**
      * QueueEvent constructor.
      *
      * @param string   $protocol
@@ -98,6 +103,22 @@ class QueueEvent extends CommonEvent
     public function getTimeout()
     {
         return $this->timeout;
+    }
+
+    /**
+     * @return int
+     */
+    public function getExitCode()
+    {
+        return $this->exitCode;
+    }
+
+    /**
+     * @param int $exitCode
+     */
+    public function setExitCode(int $exitCode)
+    {
+        $this->exitCode = $exitCode;
     }
 
     /**
