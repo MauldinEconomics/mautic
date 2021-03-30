@@ -91,8 +91,6 @@ class ConsumeQueueCommand extends ContainerAwareCommand
             return 0;
         }
 
-        $queueService->consumeFromQueue($queueName, $messages, $timeout);
-
-        return 0;
+        return $queueService->consumeFromQueue($queueName, $messages, $timeout);
     }
 }
