@@ -566,6 +566,7 @@ return [
                 'class'     => \SendGrid::class,
                 'arguments' => [
                     '%mautic.mailer_api_key%',
+                    '%mautic.mailer_sendgrid_api_options%',
                 ],
             ],
             'mautic.transport.sendgrid_api.calback' => [
