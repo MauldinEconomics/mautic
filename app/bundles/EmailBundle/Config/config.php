@@ -927,6 +927,7 @@ return [
         'mailer_amazon_region'           => 'us-east-1',
         'mailer_amazon_other_region'     => null,
         'mailer_custom_headers'          => [],
+        'mailer_sendgrid_api_options'    => [],
         'mailer_spool_type'              => 'memory', //memory = immediate; file = queue
         'mailer_spool_path'              => '%kernel.root_dir%/../var/spool',
         'mailer_spool_msg_limit'         => null,
