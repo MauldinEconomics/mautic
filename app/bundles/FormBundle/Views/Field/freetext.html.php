@@ -19,6 +19,15 @@ $label = (!$field['showLabel']) ? '' :
                 </h3>
 HTML;
 
+# when editing a form, show the name of the field form
+if(isset($inWrapper) && $inWrapper && !$label) {
+    $label = <<<HTML
+                <h3 $labelAttr>
+                    Description area
+                </h3>
+HTML;
+}
+
 $html = <<<HTML
 
             <div $containerAttr>{$label}

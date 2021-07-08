@@ -45,21 +45,6 @@ if (empty($emailType)) {
 
 $customButtons = [];
 if (!$isEmbedded) {
-    if ($emailType == 'list') {
-        $customButtons[] = [
-            'attr' => [
-                'data-toggle' => 'ajax',
-                'href'        => $view['router']->path(
-                    'mautic_email_action',
-                    ['objectAction' => 'send', 'objectId' => $email->getId()]
-                ),
-            ],
-            'iconClass' => 'fa fa-send-o',
-            'btnText'   => 'mautic.email.send',
-            'primary'   => true,
-        ];
-    }
-
     $customButtons[] = [
         'attr' => [
             'class'       => 'btn btn-default btn-nospin',
