@@ -66,7 +66,7 @@ class IpRestrictMiddleware implements HttpKernelInterface, PrioritizedMiddleware
             return $this->app->handle($request, $type, $catch);
         }
 
-        return new Response('You are not allowed to access this file.', 403);
+        return new Response('You are not allowed to access this file from ip: ' . $request->getClientIp(), 403);
     }
 
     /**
