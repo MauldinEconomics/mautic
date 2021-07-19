@@ -155,4 +155,12 @@ final class PageEvents
      * Mautic\PageBundle\Event\TrackingEvent
      */
     const ON_CONTACT_TRACKED = 'mautic.page.on_contact_tracked';
+
+    /**
+     * The mautic.page.on_redirect event is fired when redirect is executed.
+     *
+     * The event listener receives a
+     * Mautic\PageBundle\Event\RedirectEvent
+     */
+    const ON_REDIRECT = 'mautic.page.on_redirect';
 }
