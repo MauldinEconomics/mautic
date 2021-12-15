@@ -201,6 +201,7 @@ class SendEmailToContact
             $this->failContact(false, $this->emailEntityErrors);
         }
 
+        $this->mailer->setEmailCustomHeaders($this->mailer->getEmail());
         $this->mailer->setTokens($tokens);
         $this->mailer->setLead($contact);
         $this->mailer->setIdHash(); //auto generates
