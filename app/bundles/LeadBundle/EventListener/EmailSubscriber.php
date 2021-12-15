@@ -72,6 +72,7 @@ class EmailSubscriber implements EventSubscriberInterface
         $content .= $event->getEmail()->getCustomHtml();
         $content .= $event->getEmail()->getPlainText();
         $content .= implode(' ', $event->getTextHeaders());
+        $content .= implode(' ', $event->getEmail()->getHeaders());
 
         $lead = $event->getLead();
 
