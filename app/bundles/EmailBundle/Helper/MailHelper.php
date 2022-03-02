@@ -1510,6 +1510,14 @@ class MailHelper
     }
 
     /**
+     * @return bool
+     */
+    public function isUnsubscribeHeaderEmailPartDisabled()
+    {
+        return $this->factory->getParameter('disable_unsubscribe_header_email_part');
+    }
+
+    /**
      * @return bool|string
      */
     private function getUnsubscribeHeader()
