@@ -673,7 +673,7 @@ class ConfigType extends AbstractType
 
         $builder->add(
             'disable_unsubscribe_header_email_part',
-            'yesno_button_group',
+            YesNoButtonGroupType::class,
             [
                 'label'      => 'mautic.email.config.disable.unsubscribe.header.email.part',
                 'label_attr' => ['class' => 'control-label'],
