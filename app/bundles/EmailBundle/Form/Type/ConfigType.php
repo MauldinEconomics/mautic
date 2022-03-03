@@ -697,11 +697,11 @@ class ConfigType extends AbstractType
             'disable_unsubscribe_header_email_part',
             'yesno_button_group',
             [
-                'label'      => 'mautic.email.config.disable.unsubscribe.header.eamil.part',
+                'label'      => 'mautic.email.config.disable.unsubscribe.header.email.part',
                 'label_attr' => ['class' => 'control-label'],
                 'attr'       => [
                     'class'   => 'form-control',
-                    'tooltip' => 'mautic.email.config.disable.unsubscribe.header.eamil.part.tooltip',
+                    'tooltip' => 'mautic.email.config.disable.unsubscribe.header.email.part.tooltip',
                 ],
                 'data'       => empty($options['data']['disable_unsubscribe_header_email_part']) ? false : true,
                 'required'   => false,
