@@ -1447,7 +1447,7 @@ class MailHelper
 
     /**
      * Set custom headers from email
-     * 
+     *
      * @param Email $email
      */
     public function setEmailCustomHeaders($email) {
@@ -1494,15 +1494,17 @@ class MailHelper
     {
         $headers = array_merge($this->headers, $this->getSystemHeaders());
 
-        $listUnsubscribeHeader = $this->getUnsubscribeHeader();
-        if ($listUnsubscribeHeader) {
-            if (!empty($headers['List-Unsubscribe'])) {
-                if (false === strpos($headers['List-Unsubscribe'], $listUnsubscribeHeader)) {
-                    // Ensure Mautic's is always part of this header
-                    $headers['List-Unsubscribe'] .= ','.$listUnsubscribeHeader;
+        if (!$this->isUnsubscribeHeaderEmailPartDisabled()) {
+            $listUnsubscribeHeader = $this->getUnsubscribeHeader();
+            if ($listUnsubscribeHeader) {
+                if (!empty($headers['List-Unsubscribe'])) {
+                    if (false === strpos($headers['List-Unsubscribe'], $listUnsubscribeHeader)) {
+                        // Ensure Mautic's is always part of this header
+                        $headers['List-Unsubscribe'] .= ','.$listUnsubscribeHeader;
+                    }
+                } else {
+                    $headers['List-Unsubscribe'] = $listUnsubscribeHeader;
                 }
-            } else {
-                $headers['List-Unsubscribe'] = $listUnsubscribeHeader;
             }
         }
 
