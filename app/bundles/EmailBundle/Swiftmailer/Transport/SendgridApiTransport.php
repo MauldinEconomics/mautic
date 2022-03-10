@@ -87,7 +87,11 @@ class SendgridApiTransport implements \Swift_Transport, TokenTransportInterface,
     public function send(Swift_Mime_SimpleMessage $message, &$failedRecipients = null)
     {
         error_log(var_export($message, true));
-        error_log(var_export($message->getHeaders(), true));
+        $headers = [];
+        foreach ($message->getHeaders()->getAll() as $header) {
+            $headers[$header->getFieldName()] = $header->getFieldBody();
+        }
+        error_log(var_export($headers, true));
         exit;
         $this->sendGridApiFacade->send($message);
 
