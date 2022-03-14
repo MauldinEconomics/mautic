@@ -1440,6 +1440,17 @@ class MailHelper
             }
         }
 
+        $this->setEmailCustomHeaders($email);
+
+        return empty($this->errors);
+    }
+
+    /**
+     * Set custom headers from email
+     * 
+     * @param Email $email
+     */
+    public function setEmailCustomHeaders($email) {
         // Set custom headers
         if ($headers = $email->getHeaders()) {
             // HTML decode headers
@@ -1449,8 +1460,6 @@ class MailHelper
                 $this->addCustomHeader($name, $value);
             }
         }
-
-        return empty($this->errors);
     }
 
     /**
