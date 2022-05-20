@@ -113,6 +113,14 @@
     <FilesMatch "^(index|index_dev|filemanager|upgrade)\.php$">
         Require all granted
     </FilesMatch>
+
+    # Deny access to .git things
+    <FilesMatch "^\.git.*">
+        Require all denied
+    </FilesMatch>
+    <DirectoryMatch "^/.*/\.git/">
+        Require all denied
+    </DirectoryMatch>
 </IfModule>
 
 # Fallback for Apache < 2.4
@@ -134,5 +142,14 @@
         Order allow,deny
         Allow from all
     </FilesMatch>
-</IfModule>
 
+    # Deny access to .git things
+    <FilesMatch "^\.git.*">
+        Order deny,allow
+        Deny from all
+    </FilesMatch>
+    <DirectoryMatch "^/.*/\.git/">
+        Order deny,allow
+        Deny from all
+    </DirectoryMatch>
+</IfModule>
