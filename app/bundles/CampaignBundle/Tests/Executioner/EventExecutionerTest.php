@@ -1,14 +1,5 @@
 <?php
 
-/*
- * @copyright   2018 Mautic Contributors. All rights reserved
- * @author      Mautic, Inc.
- *
- * @link        https://mautic.org
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\CampaignBundle\Tests\Executioner;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -286,7 +277,7 @@ class EventExecutionerTest extends \PHPUnit\Framework\TestCase
         $this->eventRepository->method('getEntities')
             ->willReturn([]);
 
-        $subscriber = new CampaignActionJumpToEventSubscriber($this->eventRepository, $this->getEventExecutioner(), $this->translator);
+        $subscriber = new CampaignActionJumpToEventSubscriber($this->eventRepository, $this->getEventExecutioner(), $this->translator, $this->leadRepository);
         $subscriber->onJumpToEvent($pendingEvent);
 
         $this->assertEquals(count($pendingEvent->getSuccessful()), 1);

@@ -1,17 +1,10 @@
 <?php
 
-/*
- * @package     Mautic
- * @copyright   2019 Mautic Contributors. All rights reserved.
- * @author      Mautic
- * @link        http://mautic.org
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\Migrations;
 
-use Doctrine\DBAL\Migrations\SkipMigrationException;
 use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\SchemaException;
+use Doctrine\Migrations\Exception\SkipMigration;
 use Mautic\CoreBundle\Doctrine\AbstractMauticMigration;
 
 /**
@@ -20,19 +13,19 @@ use Mautic\CoreBundle\Doctrine\AbstractMauticMigration;
 class Version20191017140848 extends AbstractMauticMigration
 {
     /**
-     * @throws SkipMigrationException
-     * @throws \Doctrine\DBAL\Schema\SchemaException
+     * @throws SkipMigration
+     * @throws SchemaException
      */
     public function preUp(Schema $schema): void
     {
         $smsStatsTable = $schema->getTable(MAUTIC_TABLE_PREFIX.'sms_message_stats');
         if ($smsStatsTable->hasColumn('is_failed') && $smsStatsTable->hasColumn('details')) {
-            throw new SkipMigrationException('Schema includes this migration');
+            throw new SkipMigration('Schema includes this migration');
         }
     }
 
     /**
-     * @throws \Doctrine\DBAL\Schema\SchemaException
+     * @throws SchemaException
      */
     public function up(Schema $schema): void
     {

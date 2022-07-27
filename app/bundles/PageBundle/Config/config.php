@@ -1,14 +1,5 @@
 <?php
 
-/*
- * @copyright   2014 Mautic Contributors. All rights reserved
- * @author      Mautic
- *
- * @link        http://mautic.org
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 return [
     'routes' => [
         'main' => [
@@ -19,6 +10,21 @@ return [
             'mautic_page_action' => [
                 'path'       => '/pages/{objectAction}/{objectId}',
                 'controller' => 'MauticPageBundle:Page:execute',
+            ],
+            'mautic_page_results' => [
+                'path'       => '/pages/results/{objectId}/{page}',
+                'controller' => 'MauticPageBundle:Page:results',
+            ],
+            'mautic_page_export' => [
+                'path'       => '/pages/results/{objectId}/export/{format}',
+                'controller' => 'MauticPageBundle:Page:export',
+                'defaults'   => [
+                    'format' => 'csv',
+                ],
+            ],
+            'mautic_page_contacts' => [
+                'path'       => '/pages/view/{objectId}/contact/{page}',
+                'controller' => 'MauticPageBundle:Page:contacts',
             ],
         ],
         'public' => [
@@ -226,6 +232,7 @@ return [
                     'mautic.page.model.page',
                     'mautic.security',
                     'mautic.helper.user',
+                    'mautic.helper.theme',
                 ],
             ],
             'mautic.form.type.pagevariant' => [
@@ -323,6 +330,14 @@ return [
                     'mautic.tracker.contact',
                 ],
             ],
+            'mautic.page.model.tracking.404' => [
+                'class'     => \Mautic\PageBundle\Model\Tracking404Model::class,
+                'arguments' => [
+                    'mautic.helper.core_parameters',
+                    'mautic.tracker.contact',
+                    'mautic.page.model.page',
+                ],
+            ],
         ],
         'repositories' => [
             'mautic.page.repository.hit' => [
@@ -383,7 +398,7 @@ return [
 
     'parameters' => [
         'cat_in_page_url'       => false,
-        'google_analytics'      => false,
+        'google_analytics'      => null,
         'track_contact_by_ip'   => false,
         'track_by_tracking_url' => false,
         'redirect_list_types'   => [
@@ -397,5 +412,6 @@ return [
         'facebook_pixel_id'                     => null,
         'facebook_pixel_trackingpage_enabled'   => false,
         'facebook_pixel_landingpage_enabled'    => false,
+        'do_not_track_404_anonymous'            => false,
     ],
 ];

@@ -2,15 +2,6 @@
 
 declare(strict_types=1);
 
-/*
- * @copyright   2018 Mautic Inc. All rights reserved
- * @author      Mautic, Inc.
- *
- * @link        https://www.mautic.com
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\IntegrationsBundle\Sync\SyncDataExchange\Helper;
 
 use Mautic\ChannelBundle\Helper\ChannelListHelper;
@@ -56,6 +47,11 @@ class FieldHelper
      * @var array
      */
     private $fieldList = [];
+
+    /**
+     * @var array
+     */
+    private $requiredFieldList = [];
 
     /**
      * @var array
@@ -108,6 +104,10 @@ class FieldHelper
                 return NormalizedValueDAO::DATETIME_TYPE;
             case 'number':
                 return NormalizedValueDAO::FLOAT_TYPE;
+            case 'select':
+                return NormalizedValueDAO::SELECT_TYPE;
+            case 'multiselect':
+                return NormalizedValueDAO::MULTISELECT_TYPE;
             default:
                 return NormalizedValueDAO::STRING_TYPE;
         }
@@ -163,7 +163,7 @@ class FieldHelper
         $this->syncFields[$objectName]['mautic_internal_id'] = $this->translator->trans('mautic.core.id');
 
         if (Contact::NAME !== $objectName) {
-            uasort($this->syncFields[$objectName], 'strnatcmp');
+            uksort($this->syncFields[$objectName], 'strnatcmp');
 
             return $this->syncFields[$objectName];
         }
@@ -177,13 +177,17 @@ class FieldHelper
         // Add the timeline link
         $this->syncFields[$objectName]['mautic_internal_contact_timeline'] = $this->translator->trans('mautic.integration.sync.contact_timeline');
 
-        uasort($this->syncFields[$objectName], 'strnatcmp');
+        uksort($this->syncFields[$objectName], 'strnatcmp');
 
         return $this->syncFields[$objectName];
     }
 
     public function getRequiredFields(string $object): array
     {
+        if (isset($this->requiredFieldList[$object])) {
+            return $this->requiredFieldList[$object];
+        }
+
         $requiredFields = $this->fieldModel->getFieldList(
             false,
             false,
@@ -196,7 +200,9 @@ class FieldHelper
 
         // We don't use unique identifier field for companies.
         if ('company' === $object) {
-            return $requiredFields;
+            $this->requiredFieldList[$object] = $requiredFields;
+
+            return $this->requiredFieldList[$object];
         }
 
         $uniqueIdentifierFields = $this->fieldModel->getUniqueIdentifierFields(
@@ -206,6 +212,8 @@ class FieldHelper
             ]
         );
 
-        return array_merge($requiredFields, $uniqueIdentifierFields);
+        $this->requiredFieldList[$object] = array_merge($requiredFields, $uniqueIdentifierFields);
+
+        return $this->requiredFieldList[$object];
     }
 }

@@ -1,20 +1,11 @@
 <?php
 
-/*
- * @copyright   2018 Mautic Contributors. All rights reserved
- * @author      Mautic, Inc.
- *
- * @link        https://mautic.org
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\CampaignBundle\EventListener;
 
 use Mautic\CampaignBundle\CampaignEvents;
-use Mautic\CampaignBundle\Entity\Campaign;
 use Mautic\CampaignBundle\Entity\Event;
 use Mautic\CampaignBundle\Entity\EventRepository;
+use Mautic\CampaignBundle\Entity\LeadRepository;
 use Mautic\CampaignBundle\Event\CampaignBuilderEvent;
 use Mautic\CampaignBundle\Event\CampaignEvent;
 use Mautic\CampaignBundle\Event\PendingEvent;
@@ -43,13 +34,16 @@ class CampaignActionJumpToEventSubscriber implements EventSubscriberInterface
     private $translator;
 
     /**
-     * CampaignActionJumpToEvent constructor.
+     * @var LeadRepository
      */
-    public function __construct(EventRepository $eventRepository, EventExecutioner $eventExecutioner, TranslatorInterface $translator)
+    private $leadRepository;
+
+    public function __construct(EventRepository $eventRepository, EventExecutioner $eventExecutioner, TranslatorInterface $translator, LeadRepository $leadRepository)
     {
         $this->eventRepository  = $eventRepository;
         $this->eventExecutioner = $eventExecutioner;
         $this->translator       = $translator;
+        $this->leadRepository   = $leadRepository;
     }
 
     /**
@@ -111,7 +105,12 @@ class CampaignActionJumpToEventSubscriber implements EventSubscriberInterface
                 );
             }
         } else {
-            $this->eventExecutioner->executeForContacts($jumpTarget, $campaignEvent->getContacts());
+            // Increment the campaign rotation for the given contacts and current campaign
+            $this->leadRepository->incrementCampaignRotationForContacts(
+                $campaignEvent->getContactsKeyedById()->getKeys(),
+                $event->getCampaign()->getId()
+            );
+            $this->eventExecutioner->executeForContacts($jumpTarget, $campaignEvent->getContactsKeyedById());
             $campaignEvent->passRemaining();
         }
     }
@@ -134,7 +133,7 @@ class CampaignActionJumpToEventSubscriber implements EventSubscriberInterface
                 continue;
             }
 
-            $jumpTarget = $this->getJumpTargetForEvent($event);
+            $jumpTarget = $this->getJumpTargetForEvent($event, 'e.tempId');
 
             if (null !== $jumpTarget) {
                 $event->setProperties(array_merge(
@@ -155,12 +154,8 @@ class CampaignActionJumpToEventSubscriber implements EventSubscriberInterface
 
     /**
      * Inspect a jump event and get its target.
-     *
-     * @param mixed $column
-     *
-     * @return Event|null
      */
-    private function getJumpTargetForEvent(Event $event, $column = 'e.tempId')
+    private function getJumpTargetForEvent(Event $event, string $column): ?Event
     {
         $properties  = $event->getProperties();
         $jumpToEvent = $this->eventRepository->getEntities([

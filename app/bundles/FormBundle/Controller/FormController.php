@@ -1,14 +1,5 @@
 <?php
 
-/*
- * @copyright   2014 Mautic Contributors. All rights reserved
- * @author      Mautic
- *
- * @link        http://mautic.org
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\FormBundle\Controller;
 
 use Mautic\CoreBundle\Controller\FormController as CommonFormController;
@@ -19,11 +10,14 @@ use Mautic\FormBundle\Entity\Form;
 use Mautic\FormBundle\Exception\ValidationException;
 use Mautic\FormBundle\Helper\FormFieldHelper;
 use Mautic\FormBundle\Model\FormModel;
+use Mautic\LeadBundle\Controller\EntityContactsTrait;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Response;
 
 class FormController extends CommonFormController
 {
+    use EntityContactsTrait;
+
     /**
      * @param int $page
      *
@@ -68,8 +62,8 @@ class FormController extends CommonFormController
             $filter['force'][] = ['column' => 'f.createdBy', 'expr' => 'eq', 'value' => $this->user->getId()];
         }
 
-        $orderBy    = $session->get('mautic.form.orderby', 'f.name');
-        $orderByDir = $session->get('mautic.form.orderbydir', 'ASC');
+        $orderBy    = $session->get('mautic.form.orderby', 'f.dateModified');
+        $orderByDir = $session->get('mautic.form.orderbydir', $this->getDefaultOrderDirection());
         $forms      = $this->getModel('form.form')->getEntities(
             [
                 'start'      => $start,
@@ -257,6 +251,25 @@ class FormController extends CommonFormController
     }
 
     /**
+     * @param int $objectId
+     * @param int $page
+     *
+     * @return mixed
+     */
+    public function contactsAction($objectId, $page = 1)
+    {
+        return $this->generateContactsGrid(
+            $objectId,
+            $page,
+            'form:forms:view',
+            'form',
+            'form_submissions',
+            null,
+            'form_id'
+        );
+    }
+
+    /**
      * Generates new form and processes post data.
      *
      * @return array|\Symfony\Component\HttpFoundation\JsonResponse|\Symfony\Component\HttpFoundation\RedirectResponse|Response
@@ -432,6 +445,7 @@ class FormController extends CommonFormController
             [
                 'viewParameters' => [
                     'fields'         => $fieldHelper->getChoiceList($customComponents['fields']),
+                    'viewOnlyFields' => $customComponents['viewOnlyFields'],
                     'actions'        => $customComponents['choices'],
                     'actionSettings' => $customComponents['actions'],
                     'formFields'     => $modifiedFields,
@@ -736,7 +750,7 @@ class FormController extends CommonFormController
 
                 $modifiedFields[$id] = $field;
 
-                if (!empty($field['leadField'])) {
+                if (!empty($field['leadField']) && empty($field['parent'])) {
                     $usedLeadFields[$id] = $field['leadField'];
                 }
             }
@@ -761,7 +775,11 @@ class FormController extends CommonFormController
                 uasort(
                     $modifiedFields,
                     function ($a, $b) {
-                        return $a['order'] > $b['order'];
+                        if ($a['order'] == $b['order']) {
+                            return 0;
+                        }
+
+                        return $a['order'] < $b['order'] ? -1 : 1;
                     }
                 );
             }
@@ -795,7 +813,11 @@ class FormController extends CommonFormController
                 uasort(
                     $modifiedActions,
                     function ($a, $b) {
-                        return $a['order'] > $b['order'];
+                        if ($a['order'] == $b['order']) {
+                            return 0;
+                        }
+
+                        return $a['order'] < $b['order'] ? -1 : 1;
                     }
                 );
             }
@@ -808,6 +830,7 @@ class FormController extends CommonFormController
             [
                 'viewParameters' => [
                     'fields'             => $availableFields,
+                    'viewOnlyFields'     => $customComponents['viewOnlyFields'],
                     'actions'            => $customComponents['choices'],
                     'actionSettings'     => $customComponents['actions'],
                     'formFields'         => $modifiedFields,
@@ -952,12 +975,6 @@ class FormController extends CommonFormController
             $assetsHelper    = $this->get('templating.helper.assets');
             $slotsHelper     = $this->get('templating.helper.slots');
             $analyticsHelper = $this->get('mautic.helper.template.analytics');
-
-            if (!empty($customStylesheets)) {
-                foreach ($customStylesheets as $css) {
-                    $assetsHelper->addStylesheet($css);
-                }
-            }
 
             $slotsHelper->set('pageTitle', $form->getName());
 
@@ -1182,7 +1199,6 @@ class FormController extends CommonFormController
                 'type'    => 'notice',
                 'msg'     => 'mautic.form.notice.batch_html_generated',
                 'msgVars' => [
-                    'pluralCount' => $count,
                     '%count%'     => $count,
                 ],
             ];
@@ -1196,5 +1212,15 @@ class FormController extends CommonFormController
                 ]
             )
         );
+    }
+
+    public function getModelName(): string
+    {
+        return 'form';
+    }
+
+    protected function getDefaultOrderDirection(): string
+    {
+        return 'DESC';
     }
 }

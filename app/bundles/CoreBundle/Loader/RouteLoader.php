@@ -1,14 +1,5 @@
 <?php
 
-/*
- * @copyright   2014 Mautic Contributors. All rights reserved
- * @author      Mautic
- *
- * @link        http://mautic.org
- *
- * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
- */
-
 namespace Mautic\CoreBundle\Loader;
 
 use Mautic\CoreBundle\CoreEvents;
@@ -79,7 +70,7 @@ class RouteLoader extends Loader
         $secureCollection->addCollection($this->import('.', 'uploader'));
 
         // Elfinder file manager
-        $collection->addCollection($this->import('@FMElfinderBundle/Resources/config/routing.yml'));
+        $collection->addCollection($this->import('@FMElfinderBundle/Resources/config/routing.yaml'));
 
         //API
         if ($this->coreParameters->get('api_enabled')) {

@@ -8,6 +8,7 @@
  *
  * @license     GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html
  */
+
 $view->extend('MauticCoreBundle:Default:content.html.php');
 $view['slots']->set('mauticContent', 'asset');
 $view['slots']->set('headerTitle', $activeAsset->getTitle());
@@ -75,26 +76,26 @@ $view['slots']->set(
                                 ['entity' => $activeAsset]
                             ); ?>
                             <tr>
-                                <td width="20%"><span class="fw-b"><?php echo $view['translator']->trans(
+                                <td width="20%"><span class="fw-b textTitle"><?php echo $view['translator']->trans(
                                             'mautic.asset.asset.size'
                                         ); ?></span></td>
                                 <td><?php echo $activeAsset->getSize(); ?></td>
                             </tr>
                             <tr>
-                                <td width="20%"><span class="fw-b"><?php echo $view['translator']->trans(
+                                <td width="20%"><span class="fw-b textTitle"><?php echo $view['translator']->trans(
                                             'mautic.asset.asset.path.relative'
                                         ); ?></span></td>
                                 <td><?php echo $assetDownloadUrl; ?></td>
                             </tr>
                             <tr>
-                                <td width="20%"><span class="fw-b"><?php echo $view['translator']->trans(
+                                <td width="20%"><span class="fw-b textTitle"><?php echo $view['translator']->trans(
                                             'mautic.asset.filename.original'
                                         ); ?></span></td>
                                 <td><?php echo $activeAsset->getOriginalFilename(); ?></td>
                             </tr>
                             <tr>
                                 <?php $location = $activeAsset->getStorageLocation(); ?>
-                                <td width="20%"><span class="fw-b"><?php echo $view['translator']->trans(
+                                <td width="20%"><span class="fw-b textTitle"><?php echo $view['translator']->trans(
                                             'mautic.asset.filename.'.$location
                                         ); ?></span></td>
                                 <td><?php echo ('local' == $location) ? $activeAsset->getPath()
@@ -149,19 +150,44 @@ $view['slots']->set(
                 </div>
             </div>
             <!--/ stats -->
+
+            <!-- tabs controls -->
+            <ul class="nav nav-tabs pr-md pl-md">
+                <li class="active">
+                    <a href="#preview-container" role="tab" data-toggle="tab">
+                        <?php echo $view['translator']->trans('mautic.asset.asset.preview'); ?>
+                    </a>
+                </li>
+                <li class="">
+                    <a href="#contacts-container" role="tab" data-toggle="tab">
+                        <?php echo $view['translator']->trans('mautic.asset.asset.leads'); ?>
+                    </a>
+                </li>
+            </ul>
         </div>
 
         <?php echo $view['content']->getCustomContent('details.stats.graph.below', $mauticTemplateVars); ?>
 
         <!-- start: tab-content -->
         <div class="tab-content pa-md preview-detail">
-            <?php echo $view->render(
-                'MauticAssetBundle:Asset:preview.html.php',
-                ['activeAsset' => $activeAsset, 'assetDownloadUrl' => $view['router']->url(
-                    'mautic_asset_action',
-                    ['objectAction' => 'preview', 'objectId' => $activeAsset->getId()]
-                )]
-            ); ?>
+            <div class="tab-pane fade in active bdr-w-0" id="preview-container">
+                <?php echo $view->render(
+                    'MauticAssetBundle:Asset:preview.html.php',
+                    ['activeAsset' => $activeAsset, 'assetDownloadUrl' => $view['router']->url(
+                        'mautic_asset_action',
+                        ['objectAction' => 'preview', 'objectId' => $activeAsset->getId()]
+                    )]
+                ); ?>
+            </div>
+            <div class="tab-pane page-list fade bdr-w-0" id="contacts-container" data-target-url="<?php
+            echo $view['router']->url('mautic_asset_contacts', [
+                'objectId' => $activeAsset->getId(),
+                'page'     => $app->getSession()->get('mautic.asset.contact.page', 1),
+            ]);
+            ?>">
+                <div class="spinner"><i class="fa fa-spin fa-spinner"></i></div>
+                <div class="clearfix"></div>
+            </div>
         </div>
         <!--/ end: tab-content -->
     </div>
