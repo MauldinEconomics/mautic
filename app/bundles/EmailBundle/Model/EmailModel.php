@@ -1365,20 +1365,28 @@ class EmailModel extends FormModel implements AjaxLookupModelInterface
             }
         }
 
-        // // Process frequency rules for email
-        // if ($isMarketing && count($sendTo)) {
-        //     $campaignEventId = (is_array($channel) && !empty($channel) && 'campaign.event' === $channel[0] && !empty($channel[1])) ? $channel[1]
-        //         : null;
-        //     $this->messageQueueModel->processFrequencyRules(
-        //         $sendTo,
-        //         'email',
-        //         $email->getId(),
-        //         $campaignEventId,
-        //         $emailAttempts,
-        //         $emailPriority,
-        //         $messageQueue
-        //     );
-        // }
+        /*
+         * @TODO TEMP HACK - Skip processing of frequency rules because it
+         * takes forever even though we do not use them.
+         */
+        goto SKIP_FREQUENCY_RULES;
+
+        // Process frequency rules for email
+        if ($isMarketing && count($sendTo)) {
+            $campaignEventId = (is_array($channel) && !empty($channel) && 'campaign.event' === $channel[0] && !empty($channel[1])) ? $channel[1]
+                : null;
+            $this->messageQueueModel->processFrequencyRules(
+                $sendTo,
+                'email',
+                $email->getId(),
+                $campaignEventId,
+                $emailAttempts,
+                $emailPriority,
+                $messageQueue
+            );
+        }
+
+        SKIP_FREQUENCY_RULES:
 
         //get a count of leads
         $count = count($sendTo);
