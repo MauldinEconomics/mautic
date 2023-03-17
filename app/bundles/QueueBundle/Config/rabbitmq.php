@@ -20,9 +20,9 @@ $container->loadFromExtension(
                 'password'           => '%mautic.rabbitmq_password%',
                 'vhost'              => '%mautic.rabbitmq_vhost%',
                 'lazy'               => true,
-                'connection_timeout' => 3,
-                'heartbeat'          => 2,
-                'read_write_timeout' => 4,
+                'connection_timeout' => '%mautic.rabbitmq_connection_timeout%',
+                'heartbeat'          => '%mautic.rabbitmq_heartbeat%',
+                'read_write_timeout' => '%mautic.rabbitmq_read_write_timeout%',
             ],
         ],
         'producers' => [
@@ -54,7 +54,12 @@ $container->loadFromExtension(
                     'auto_delete' => false,
                     'durable'     => true,
                 ],
-                'callback' => 'mautic.queue.helper.rabbitmq_consumer',
+                'callback'               => 'mautic.queue.helper.rabbitmq_consumer',
+                'qos_options'            => [
+                    'prefetch_size'  => '%mautic.rabbitmq_qos_prefetch_size%',
+                    'prefetch_count' => '%mautic.rabbitmq_qos_prefetch_count%',
+                    'global'         => '%mautic.rabbitmq_qos_global%',
+                ],
             ],
         ],
     ]
