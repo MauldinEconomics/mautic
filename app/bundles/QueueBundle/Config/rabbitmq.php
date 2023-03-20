@@ -60,7 +60,7 @@ $container->loadFromExtension(
                 'qos_options'            => [
                     'prefetch_size'  => '%mautic.rabbitmq_qos_prefetch_size%',
                     'prefetch_count' => '%mautic.rabbitmq_qos_prefetch_count%',
-                    'global'         => '%mautic.rabbitmq_qos_global%',
+                    'global'         => false,
                 ],
             ],
         ],
