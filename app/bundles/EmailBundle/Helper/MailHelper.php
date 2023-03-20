@@ -1447,7 +1447,7 @@ class MailHelper
 
     /**
      * Set custom headers from email
-     * 
+     *
      * @param Email $email
      */
     public function setEmailCustomHeaders($email) {
