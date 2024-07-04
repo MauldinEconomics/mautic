@@ -1440,6 +1440,17 @@ class MailHelper
             }
         }
 
+        $this->setEmailCustomHeaders($email);
+
+        return empty($this->errors);
+    }
+
+    /**
+     * Set custom headers from email
+     *
+     * @param Email $email
+     */
+    public function setEmailCustomHeaders($email) {
         // Set custom headers
         if ($headers = $email->getHeaders()) {
             // HTML decode headers
@@ -1449,8 +1460,6 @@ class MailHelper
                 $this->addCustomHeader($name, $value);
             }
         }
-
-        return empty($this->errors);
     }
 
     /**
@@ -1485,19 +1494,29 @@ class MailHelper
     {
         $headers = array_merge($this->headers, $this->getSystemHeaders());
 
-        $listUnsubscribeHeader = $this->getUnsubscribeHeader();
-        if ($listUnsubscribeHeader) {
-            if (!empty($headers['List-Unsubscribe'])) {
-                if (false === strpos($headers['List-Unsubscribe'], $listUnsubscribeHeader)) {
-                    // Ensure Mautic's is always part of this header
-                    $headers['List-Unsubscribe'] .= ','.$listUnsubscribeHeader;
+        if (!$this->isUnsubscribeHeaderEmailPartDisabled()) {
+            $listUnsubscribeHeader = $this->getUnsubscribeHeader();
+            if ($listUnsubscribeHeader) {
+                if (!empty($headers['List-Unsubscribe'])) {
+                    if (false === strpos($headers['List-Unsubscribe'], $listUnsubscribeHeader)) {
+                        // Ensure Mautic's is always part of this header
+                        $headers['List-Unsubscribe'] .= ','.$listUnsubscribeHeader;
+                    }
+                } else {
+                    $headers['List-Unsubscribe'] = $listUnsubscribeHeader;
                 }
-            } else {
-                $headers['List-Unsubscribe'] = $listUnsubscribeHeader;
             }
         }
 
         return $headers;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isUnsubscribeHeaderEmailPartDisabled()
+    {
+        return $this->factory->getParameter('disable_unsubscribe_header_email_part');
     }
 
     /**
