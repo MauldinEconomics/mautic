@@ -394,6 +394,11 @@ class SubmissionModel extends CommonFormModel
         $trackedDevice = $this->deviceTrackingService->getTrackedDevice();
         $trackingId    = (null === $trackedDevice ? null : $trackedDevice->getTrackingId());
 
+        if ($lead->isNew()) {
+            $this->leadModel->saveEntity($lead, false);
+            $this->em->persist($lead);
+        }
+
         //set tracking ID for stats purposes to determine unique hits
         $submission->setTrackingId($trackingId)
             ->setLead($lead);
